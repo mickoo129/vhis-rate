@@ -451,7 +451,7 @@ details.more[open] summary::before { content: "▾ "; }
 @media (max-width: 700px) { .total-hero { grid-template-columns: 1fr; } .total-hero__main b { font-size: 30px; } }
 @media print { .total-hero { break-inside: avoid; padding: 10px 12px; } .total-hero__main b { font-size: 24px; } }
 @media print {
-  #secFuture .milestones { display: none; }
+  #secGrowth .milestones { display: none; }
   #secSave { break-before: page; page-break-before: always; }
   .growth { margin-top: 8px; padding: 8px 12px; }
 }
@@ -521,3 +521,49 @@ details.more[open] summary::before { content: "▾ "; }
 }
 /* ===== MKPA 統一標準 完 ===== */
 
+
+/* 一步步睇點儲 */
+.chart-tip { margin: 6px 0 0; }
+.story { margin-top: 14px; }
+.story__title { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; }
+.story__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.story__btn { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; color: var(--ink-2); font: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.story__btn:hover { border-color: var(--ink-3); }
+.story__btn[disabled] { opacity: .4; cursor: not-allowed; }
+.story__n { font-size: 15px; }
+.story__btn--bank[aria-pressed="true"] { background: var(--bank); border-color: var(--bank); color: #fff; }
+.story__btn--plan[aria-pressed="true"] { background: var(--plan); border-color: var(--plan); color: #fff; }
+.story__btn--delay[aria-pressed="true"] { background: var(--premium); border-color: var(--premium); color: #fff; }
+.story-notes { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.story-empty { margin: 0; }
+.story-note { display: flex; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 10px 14px; font-size: 14px; line-height: 1.6; }
+.story-note p { margin: 0; }
+.story-note__n { font-weight: 900; font-size: 15px; }
+.story-note--bank { background: var(--bank-soft); } .story-note--bank .story-note__n { color: var(--bank); }
+.story-note--plan { background: var(--plan-soft); } .story-note--plan .story-note__n { color: var(--plan); }
+.story-note--delay { background: var(--premium-soft); } .story-note--delay .story-note__n { color: var(--premium); }
+.story-note b.good, .kpi__s .good { color: var(--brand); }
+.story-note b.bad, .kpi__s .bad { color: var(--premium); }
+.kpi--bank { border-top-color: var(--bank); }
+.kpi--bank .kpi__q .num { background: var(--bank-soft); color: var(--bank); }
+.kpi--plan { border-top-color: var(--plan); }
+.kpi--plan .kpi__q .num { background: var(--plan-soft); color: var(--plan); }
+@media (max-width: 560px) {
+  .story__btn { font-size: 13px; padding: 6px; flex-direction: column; gap: 0; }
+}
+@media print { .story-notes { gap: 4px; } .story-note { padding: 5px 10px; font-size: 10px; } }
+@media print {
+  /* 「保費點樣升」列印時擺喺「要儲幾多」後面，填返第 2 頁 */
+  #resultBody > * { order: 2; }
+  #resultBody > .print-meta, #resultBody > .client-line, #resultBody > .kpis, #resultBody > #secFuture, #resultBody > #secSave { order: 0; }
+  #resultBody > #secGrowth { order: 1; }
+}
+@media print {
+  .rung { padding: 4px 10px; row-gap: 0; }
+  .ladder { gap: 2px; }
+  .delay-lead { font-size: 13px; margin: 2px 0 8px; }
+  .nosave { margin-top: 8px; padding: 8px 12px; }
+  .nosave__row { margin-top: 6px; }
+  .nosave__cell { padding: 5px 10px; }
+  .nosave__cell b { font-size: 15px; }
+}

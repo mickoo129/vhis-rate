@@ -159,19 +159,19 @@
 
         <div class="kpis">
           <a class="kpi" href="#secFuture">
-            <div class="kpi__q"><span class="num">1</span>現時保費</div>
-            <div class="kpi__v" id="kNow">—</div>
-            <div class="kpi__s" id="kNowSub"></div>
+            <div class="kpi__q"><span class="num">1</span>總共要交幾多保費</div>
+            <div class="kpi__v" id="kTotal">—</div>
+            <div class="kpi__s" id="kTotalSub"></div>
           </a>
-          <a class="kpi" href="#secFuture">
-            <div class="kpi__q"><span class="num">2</span>將來保費</div>
-            <div class="kpi__v" id="kFuture">—</div>
-            <div class="kpi__s" id="kFutureSub"></div>
+          <a class="kpi kpi--bank" href="#secSave">
+            <div class="kpi__q"><span class="num">2</span><span id="kBankTitle">銀行要點儲</span><span class="kpi__tag" id="kBankTag"></span></div>
+            <div class="kpi__v" id="kBank">—</div>
+            <div class="kpi__s" id="kBankSub"></div>
           </a>
-          <a class="kpi" href="#secSave">
-            <div class="kpi__q"><span class="num">3</span><span id="kSaveTitle">要儲幾多</span><span class="kpi__tag" id="kSaveTag"></span></div>
-            <div class="kpi__v" id="kSave">—</div>
-            <div class="kpi__s" id="kSaveSub"></div>
+          <a class="kpi kpi--plan" href="#secSave">
+            <div class="kpi__q"><span class="num">3</span><span id="kPlanTitle">儲蓄計劃要點儲</span><span class="kpi__tag" id="kPlanTag"></span></div>
+            <div class="kpi__v" id="kPlan">—</div>
+            <div class="kpi__s" id="kPlanSub"></div>
           </a>
           <a class="kpi kpi--alert" href="#secDelay">
             <div class="kpi__q"><span class="num">4</span>遲儲嘅代價<span class="kpi__tag" id="kDelayTag"></span></div>
@@ -180,26 +180,34 @@
           </a>
         </div>
 
-        <!-- 1 + 2 -->
+        <!-- 1：總保費 + 一步步睇點儲 -->
         <section class="card" id="secFuture">
           <header class="card__head">
             <div>
-              <h2><span class="num">1</span><span class="num">2</span>現時及將來保費</h2>
-              <p class="card__sub" id="futureSub"></p>
+              <h2><span class="num">1</span>總共要交幾多保費</h2>
               <p class="card__sub who-line" id="futureWho"></p>
+              <p class="card__sub" id="futureSub"></p>
             </div>
           </header>
           <div class="total-hero" id="totalHero"></div>
           <div class="chart chart--tall"><canvas id="premiumChart" aria-label="逐年保費圖"></canvas></div>
-          <div class="milestones" id="milestones"></div>
-          <div id="growth"></div>
+          <p class="hint chart-tip no-print">滑鼠指住（或者手指撳住）條線，可以睇每一年嘅保費。</p>
+          <div class="story no-print" id="story">
+            <div class="story__title">一步步睇點樣儲錢交保費</div>
+            <div class="story__steps">
+              <button type="button" class="story__btn story__btn--bank" data-step="bank" aria-pressed="false"><span class="story__n">①</span><span>銀行點儲</span></button>
+              <button type="button" class="story__btn story__btn--plan" data-step="plan" aria-pressed="false"><span class="story__n">②</span><span>儲蓄計劃點儲</span></button>
+              <button type="button" class="story__btn story__btn--delay" data-step="delay" aria-pressed="false"><span class="story__n">③</span><span id="storyDelayLabel">遲 5 年先儲</span></button>
+            </div>
+          </div>
+          <div class="story-notes" id="storyNotes"></div>
         </section>
 
         <!-- 3 -->
         <section class="card" id="secSave">
           <header class="card__head">
             <div>
-              <h2><span class="num">3</span><span id="saveTitle">要儲幾多</span></h2>
+              <h2><span class="num">2</span><span class="num">3</span><span id="saveTitle">要儲幾多</span></h2>
               <p class="card__sub" id="saveSub"></p>
             </div>
           </header>
@@ -231,11 +239,22 @@
           <div class="nosave" id="noSave"></div>
         </section>
 
+        <!-- 保費點樣升 -->
+        <section class="card" id="secGrowth">
+          <header class="card__head">
+            <div>
+              <h2>保費點樣升</h2>
+              <p class="card__sub">保費每隔幾年嘅價錢，同埋每個年齡段平均每年升幾多。</p>
+            </div>
+          </header>
+          <div id="growth"></div>
+          <div class="milestones" id="milestones"></div>
+        </section>
+
         <!-- 明細 -->
         <section class="card">
           <details id="detailBox">
             <summary><h2>逐年保費明細</h2><span class="card__sub">撳開睇</span></summary>
-            <div id="detailGrowth"></div>
             <p class="hint" id="detailNote"></p>
             <div class="table-wrap"><table class="detail" id="detailTable"></table></div>
           </details>
