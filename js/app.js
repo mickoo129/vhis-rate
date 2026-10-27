@@ -513,7 +513,7 @@
     const isOut = (i) => pm[ageList[i]] === 'out';
     const saveCol = COLORS.premium, selfCol = COLORS.prep, outCol = '#4b5563';
     const datasets = [{
-      label: '全年保費', data: r.rows.map((x) => x.payable), pointRadius: 0, borderWidth: 2.5, tension: 0.2, fill: true,
+      label: '全年保費', order: 1, data: r.rows.map((x) => x.payable), pointRadius: 0, borderWidth: 2.5, tension: 0.2, fill: true,
       borderColor: selfCol, backgroundColor: 'rgba(154,163,178,.14)',
       segment: {
         borderColor: (c) => (isSave(c.p1DataIndex) ? saveCol : isOut(c.p1DataIndex) ? outCol : selfCol),
@@ -530,10 +530,24 @@
     if (inp.inflation > 0) {
       datasets.push({ label: '只計年齡升幅（未計額外加價）', data: r.rows.map((x) => x.table * mode.factor * mode.periods * (1 + inp.levy)), borderColor: COLORS.table, borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5, fill: false, tension: 0.2 });
     }
+    // 供款柱：邊段時間儲錢、每年儲幾多（同保費用同一條金額軸）
+    const dep = inp.calc === 'fixed' ? r.fixed[0] : r;
+    const depBar = (res, nm, rate, col) => {
+      if (!res || !res.feasible) return;
+      datasets.push({
+        type: 'bar', order: 2, deposit: true, monthly: res.monthly,
+        label: `${nm} ${pct(rate)} 供款：每月 ${money(res.monthly)} × ${res.years} 年`,
+        data: ageList.map((a) => (a >= res.depositFrom && a <= res.depositTo ? res.annual : null)),
+        backgroundColor: col, borderRadius: 2, maxBarThickness: 14, categoryPercentage: 0.8, barPercentage: 0.9,
+      });
+    };
+    depBar(dep.bank, '銀行', inp.bankRate, 'rgba(36,89,201,.75)');
+    depBar(dep.plan, '儲蓄計劃', inp.planRate, 'rgba(194,106,6,.8)');
     const opts = baseOptions();
     opts.plugins.legend.labels.filter = (item, d) => d.datasets[item.datasetIndex].label !== '全年保費';
     opts.plugins.tooltip.callbacks.label = (c) => {
       if (c.dataset.legendOnly || c.parsed.y == null) return null;
+      if (c.dataset.deposit) return `${c.dataset.label.split(' 供款')[0]} 供款：每年 ${money(c.parsed.y)}（每月 ${money(c.dataset.monthly)}）`;
       if (c.dataset.label !== '全年保費') return `${c.dataset.label}：${money(c.parsed.y)}`;
       const who = pm[ageList[c.dataIndex]];
       return `全年保費：${money(c.parsed.y)}（${who === 'save' ? `由${f.name}支付` : who === 'out' ? '儲蓄用完，自己交' : '自己交'}）`;
@@ -645,35 +659,8 @@
     $('compare').innerHTML = cards[order[0]] + cards[order[1]] +
       `<div class="baseline">如果完全唔預先儲：${inp.startAge}–${inp.endAge} 歲要自己交 <b>${money(r.totalPayable)}</b>。${ok.length && saved > 0 ? `預先儲最多可以少拎 ${money(saved)}（${pct(saved / r.totalPayable)}）出嚟。` : ''}</div>`;
 
-    drawDeposit(inp, r.bank, r.plan);
     drawTotals(inp, r);
     drawBalance(inp, r.bank, r.plan);
-  }
-
-  function drawDeposit(inp, bank, plan) {
-    const r = { bank, plan };
-    // 每月供款柱狀圖
-    const lastDep = Math.max(r.bank.feasible ? r.bank.depositTo : 0, r.plan.depositTo, inp.startAge - 1);
-    const dAges = [];
-    for (let a = inp.currentAge; a <= Math.min(lastDep + 1, inp.endAge); a++) dAges.push(a);
-    const depSeries = (res) => dAges.map((a) => (res.feasible && a >= res.depositFrom && a <= res.depositTo ? res.monthly : null));
-    chart('depositChart', {
-      type: 'bar',
-      data: {
-        labels: dAges.map((a) => `${a}歲`),
-        datasets: [
-          { label: `銀行 ${pct(inp.bankRate)}：每月 ${money(r.bank.monthly || 0)} × ${r.bank.years || 0} 年`, data: depSeries(r.bank), backgroundColor: COLORS.bank, borderRadius: 3, maxBarThickness: 26 },
-          { label: `儲蓄計劃 ${pct(inp.planRate)}：每月 ${money(r.plan.monthly)} × ${r.plan.years} 年`, data: depSeries(r.plan), backgroundColor: COLORS.plan, borderRadius: 3, maxBarThickness: 26 },
-        ],
-      },
-      options: baseOptions({
-        plugins: {
-          legend: { position: 'top', align: 'start', labels: { boxWidth: 12, boxHeight: 12, usePointStyle: true } },
-          tooltip: { callbacks: { label: (c) => (c.parsed.y == null ? null : `${c.dataset.label.split('：')[0]}：每月 ${money(c.parsed.y)}`) } },
-        },
-      }),
-    });
-
   }
 
   function drawTotals(inp, r) {
@@ -755,7 +742,6 @@
     const order = focus(r).kind === 'bank' ? ['bank', 'plan'] : ['plan', 'bank'];
     $('compare').innerHTML = cards[order[0]] + cards[order[1]] +
       `<div class="baseline">目標 ${inp.startAge}–${inp.endAge} 歲總保費 <b>${money(r.totalPayable)}</b>，${r.peak.age} 歲時一年要 ${money(r.peak.payable)}。</div>`;
-    drawDeposit(inp, fb, fp);
 
     // 可以交到幾歲：橫條（以目標年數為 100%）
     const target = inp.endAge - inp.startAge + 1;
