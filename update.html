@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>保費表更新工具</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Noto+Sans+HK:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%230a463f%27/%3E%3Cpath d=%27M13 8h6v5h5v6h-5v5h-6v-5H8v-6h5z%27 fill=%27%23fff%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar__inner">
+      <div>
+        <div class="eyebrow">MKPA · 內部工具</div>
+        <h1>保費表更新工具</h1>
+      </div>
+      <div class="topbar__actions"><a class="btn btn--ghost" href="index.html">返回計算器</a></div>
+    </div>
+  </header>
+
+  <main class="wrap upd">
+    <section class="card">
+      <h2>點樣更新</h2>
+      <ol class="steps">
+        <li>將宏利新嘅<strong>標準保費表 PDF</strong>拖入下面（可以一次拖幾份）。支援：愛守護標準計劃（產品小冊子入面嘅保費表都得）、全護航、晉悅、晉逸。</li>
+        <li>睇下面嘅檢查結果同加價比較。<strong>紅色</strong>即係有問題，嗰份唔會更新。</li>
+        <li>撳「下載新 premiums.js」，用佢取代網站資料夾入面 <code>data/premiums.js</code>。</li>
+        <li>將成個網站資料夾（或者重新壓成 zip）拖上 Netlify 就完成。</li>
+      </ol>
+      <p class="hint">所有處理都喺你部電腦嘅瀏覽器入面做，PDF 唔會上載去任何地方。</p>
+    </section>
+
+    <section class="card">
+      <label class="drop" id="drop">
+        <input type="file" id="files" accept="application/pdf" multiple>
+        <span class="drop__big">拖 PDF 入嚟，或者撳一下揀檔案</span>
+        <span class="drop__small">現行版本：<span id="current"></span></span>
+      </label>
+      <div id="reports"></div>
+      <div class="upd__actions" id="actions" hidden>
+        <button type="button" class="btn btn--primary" id="download">下載新 premiums.js</button>
+        <span class="hint" id="actionHint"></span>
+      </div>
+    </section>
+  </main>
+
+  <script src="vendor/pdf-3.11.174.min.js"></script>
+  <script src="data/premiums.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/update.js"></script>
+</body>
+</html>
