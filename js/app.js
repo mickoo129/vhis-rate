@@ -5,7 +5,7 @@
   const C = window.VHISCalc;
   const $ = (id) => document.getElementById(id);
 
-  const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 45, e: 85, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000 };
+  const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 60, e: 90, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000 };
   const COLORS = { premium: '#b3261e', prep: '#9aa3b2', table: '#1D2B2A', bank: '#2459c9', plan: '#c26a06' };
 
   // ---------- 格式 ----------
@@ -179,11 +179,29 @@
     });
     $('copyLink').addEventListener('click', copyLink);
     $('story').addEventListener('click', (e) => {
+      const all = e.target.closest('.story__all');
+      if (all) {
+        const on = !(story.bank && story.plan && story.delay);
+        Object.assign(story, { bank: on, plan: on, delay: on });
+        render();
+        return;
+      }
       const btn = e.target.closest('.story__btn');
       if (!btn || btn.disabled) return;
       story[btn.dataset.step] = !story[btn.dataset.step];
       render();
     });
+    // 頂部第 2–4 格：未打開就撳一下打開（唔跳去下面），打開咗就跳去詳細內容
+    document.querySelectorAll('.kpi[data-step]').forEach((tile) => tile.addEventListener('click', (e) => {
+      const k = tile.dataset.step;
+      const btn = document.querySelector(`.story__btn[data-step="${k}"]`);
+      if (!story[k]) {
+        e.preventDefault();
+        if (btn && btn.disabled) return;
+        story[k] = true;
+        render();
+      }
+    }));
   }
 
   async function copyLink() {
@@ -300,7 +318,6 @@
     const f = focus(r);
     $('kBankTag').textContent = pct(inp.bankRate);
     $('kPlanTag').textContent = pct(inp.planRate);
-    $('kDelayTag').textContent = f.label;
     $('kBankTitle').textContent = inp.calc === 'fixed' ? '銀行夠交到幾歲' : '銀行要點儲';
     $('kPlanTitle').textContent = inp.calc === 'fixed' ? '儲蓄計劃夠交到幾歲' : '儲蓄計劃要點儲';
     if (inp.calc === 'fixed') return renderKpisFixed(inp, r, f);
@@ -325,19 +342,52 @@
       if (parts.length) s3.push(`<span class="${dt > 0 ? 'good' : 'bad'}">比銀行${parts.join('、')}</span>`);
     }
     $('kPlanSub').innerHTML = s3.join('<br>');
-    const res = r[f.kind];
+    renderDelayKpi(inp, r);
+    gateKpis(inp, r);
+  }
 
-    const s5 = r.scenarios[1];
-    if (s5 && s5[f.kind].feasible) {
-      const d = s5[f.kind];
-      const up = d.monthly - res.monthly;
-      $('kDelay').innerHTML = `<span class="kpi__from">$${nf.format(Math.round(res.monthly))}</span> → $${nf.format(Math.round(d.monthly))}<small> / 月</small>`;
-      $('kDelaySub').innerHTML = `遲 ${s5.delay} 年（${s5.age} 歲）先儲，每月要多儲 <b>${money(up)}</b>（+${pct(up / res.monthly, 0)}）` +
-        (d.totalOutlay - res.totalOutlay > 1000 ? `<br>總共多拎 ${money(d.totalOutlay - res.totalOutlay)} 出嚟` : '<br>可以儲嘅時間短咗，每月壓力大好多');
-    } else {
+  // 第 4 格：銀行同儲蓄計劃都計
+  function renderDelayKpi(inp, r) {
+    const fixed = inp.calc === 'fixed';
+    const list = fixed ? r.fixed : r.scenarios;
+    const s5 = list[1];
+    const maxAge = product().maxAge;
+    const ks = s5 ? ['bank', 'plan'].filter((k) => s5[k].feasible && list[0][k].feasible) : [];
+    if (!ks.length) {
+      $('kDelayTag').textContent = '';
       $('kDelay').innerHTML = `${money(r.peak.payable)}<small> / 年</small>`;
-      $('kDelaySub').innerHTML = `完全唔儲嘅話，${r.peak.age} 歲時每年要自己交<br>約每月 <b>${money(r.peak.payable / 12)}</b>`;
+      $('kDelaySub').innerHTML = `冇時間再遲。完全唔儲嘅話，${r.peak.age} 歲時每年要自己交（約每月 <b>${money(r.peak.payable / 12)}</b>）`;
+      return;
     }
+    $('kDelayTag').textContent = `遲 ${s5.delay} 年`;
+    $('kDelay').innerHTML = `<div class="kd">${ks.map((k) => {
+      const base = list[0][k], d = s5[k];
+      const nm = k === 'bank' ? '銀行' : '儲蓄計劃';
+      const v = fixed
+        ? `${reachShort(base, maxAge)} → <b>${reachShort(d, maxAge)}</b><small> 歲</small>`
+        : `$${nf.format(Math.round(base.monthly))} → <b>$${nf.format(Math.round(d.monthly))}</b><small> / 月</small>`;
+      return `<div class="kd__row kd__row--${k}"><span>${nm}</span><span class="kd__v">${v}</span></div>`;
+    }).join('')}</div>`;
+    $('kDelaySub').innerHTML = fixed
+      ? `${s5.age} 歲先開始儲，同樣每月 ${money(inp.monthlySaving)}，可以交到嘅年齡`
+      : `${s5.age} 歲先開始儲，每月要儲嘅錢`;
+  }
+
+  // 未撳嘅步驟唔顯示數字
+  function gateKpis(inp, r) {
+    const hide = (id, step, hint) => {
+      const tile = $(id).closest('.kpi');
+      tile.classList.toggle('kpi--locked', !story[step]);
+      tile.setAttribute('aria-pressed', String(!!story[step]));
+      if (!story[step]) {
+        $(id).innerHTML = `<span class="kpi__reveal">撳呢度睇 ${{ bank: '①', plan: '②', delay: '③' }[step]}</span>`;
+        $(id + 'Sub').innerHTML = hint;
+      }
+    };
+    const fixed = inp.calc === 'fixed';
+    hide('kBank', 'bank', fixed ? `每月儲 ${money(inp.monthlySaving)} 入銀行，夠交到幾歲？` : '放銀行儲，每月要儲幾多、儲幾耐？');
+    hide('kPlan', 'plan', fixed ? `每月儲 ${money(inp.monthlySaving)} 落儲蓄計劃，夠交到幾歲？` : '用儲蓄計劃，每月要儲幾多、儲幾耐？');
+    hide('kDelay', 'delay', '遲幾年先開始儲，差幾遠？');
   }
 
   function renderKpisFixed(inp, r, f) {
@@ -358,23 +408,8 @@
     one('kBank', r.fixed[0].bank, r.bank);
     one('kPlan', r.fixed[0].plan, r.plan);
 
-    const s5 = r.fixed[1];
-    const d = s5 && s5[f.kind];
-    if (d && d.feasible) {
-      const lost = fx.paidYears - d.paidYears;
-      const bothOk = fx.reachesTarget && d.reachesTarget;
-      $('kDelay').innerHTML = bothOk
-        ? `<span class="kpi__from">$${nf.format(Math.round(fx.leftoverAtTarget))}</span> → $${nf.format(Math.round(d.leftoverAtTarget))}`
-        : `<span class="kpi__from">${reachShort(fx, maxAge)}</span> → ${reachShort(d, maxAge)}<small> 歲</small>`;
-      $('kDelaySub').innerHTML = bothOk
-        ? `遲 ${s5.delay} 年先儲，都夠交到 ${inp.endAge} 歲<br>但到時剩低嘅錢少咗 <b>${money(fx.leftoverAtTarget - d.leftoverAtTarget)}</b>`
-        : lost > 0
-        ? `同樣每月 ${money(fx.monthly)}，遲 ${s5.delay} 年先儲<br>就<b>少交 ${lost} 年</b>保費` + (d.shortfall - fx.shortfall > 1000 ? `，要自己多交 ${money(d.shortfall - fx.shortfall)}` : '')
-        : `遲 ${s5.delay} 年先儲，到 ${inp.endAge} 歲剩錢由 ${money(fx.leftoverAtTarget || 0)} 變 ${money(d.leftoverAtTarget || 0)}`;
-    } else {
-      $('kDelay').innerHTML = `${money(r.peak.payable)}<small> / 年</small>`;
-      $('kDelaySub').innerHTML = `完全唔儲嘅話，${r.peak.age} 歲時每年要自己交<br>約每月 <b>${money(r.peak.payable / 12)}</b>`;
-    }
+    renderDelayKpi(inp, r);
+    gateKpis(inp, r);
   }
 
   // 主要展示方案（銀行冇儲錢時間就自動用儲蓄計劃）
@@ -408,13 +443,24 @@
   }
 
   // 每一歲由邊個交保費（跟主要展示方案）
-  function payerMap(r, inp) {
+  // 圖表用邊個方法講「邊個交」：只撳咗一個就跟嗰個；兩個都撳就跟主要展示方案；未撳就淨係講目標
+  function chartFocus(r) {
+    if (!story.bank && !story.plan) return null;
     const f = focus(r);
+    let kind = f.kind;
+    if (story.bank && !story.plan && r.bank.feasible) kind = 'bank';
+    else if (story.plan && !story.bank) kind = 'plan';
+    return { kind, name: kind === 'plan' ? '儲蓄計劃' : '銀行', fx: r.fixed ? r.fixed[0][kind] : null };
+  }
+
+  function payerMap(r, inp, ck = chartFocus(r)) {
+    const f = ck;
     const m = {};
     for (const x of r.rows) {
       let who = 'self';
       if (x.age >= inp.startAge) {
-        if (inp.calc === 'fixed') {
+        if (!f) who = 'target';
+        else if (inp.calc === 'fixed') {
           const fx = f.fx;
           if (fx && fx.feasible && x.age >= fx.withdrawFrom && (fx.runOutAge == null || x.age < fx.runOutAge)) who = 'save';
           else if (fx && fx.feasible && fx.runOutAge != null && x.age >= fx.runOutAge) who = 'out';
@@ -524,17 +570,24 @@
   });
 
   // 紅色斜紋（遲儲供款柱）
-  let stripeCache = null;
-  function stripes() {
-    if (stripeCache) return stripeCache;
+  const stripeCache = {};
+  function stripes(kind) {
+    if (stripeCache[kind]) return stripeCache[kind];
+    const rgb = kind === 'bank' ? '36,89,201' : '194,106,6';
     const c = document.createElement('canvas');
     c.width = c.height = 8;
     const x = c.getContext('2d');
-    x.fillStyle = 'rgba(198,40,40,.25)'; x.fillRect(0, 0, 8, 8);
-    x.strokeStyle = 'rgba(198,40,40,.85)'; x.lineWidth = 2;
+    x.fillStyle = `rgba(${rgb},.18)`; x.fillRect(0, 0, 8, 8);
+    x.strokeStyle = `rgba(${rgb},.95)`; x.lineWidth = 2;
     x.beginPath(); x.moveTo(-2, 10); x.lineTo(10, -2); x.moveTo(-2, 2); x.lineTo(2, -2); x.moveTo(6, 10); x.lineTo(10, 6); x.stroke();
-    stripeCache = x.createPattern(c, 'repeat');
-    return stripeCache;
+    stripeCache[kind] = x.createPattern(c, 'repeat');
+    return stripeCache[kind];
+  }
+  // 遲儲睇邊個方法：撳咗邊個就睇邊個；兩個都未撳就兩個都睇
+  function delayKinds(delayS) {
+    let ks = ['bank', 'plan'].filter((k) => story[k]);
+    if (!ks.length) ks = ['bank', 'plan'];
+    return ks.filter((k) => delayS[k].feasible);
   }
 
   // 三個掣同埋每一步嘅講解
@@ -546,6 +599,7 @@
       b.setAttribute('aria-pressed', String(!!story[k] && !b.disabled));
     });
     $('storyDelayLabel').textContent = delayS ? `遲 ${delayS.delay} 年先儲` : '遲儲';
+    $('storyAll').textContent = story.bank && story.plan && story.delay ? '全部收埋' : '全部顯示';
     const maxAge = product().maxAge;
     const fixed = inp.calc === 'fixed';
     const notes = [];
@@ -576,17 +630,18 @@
       notes.push(['plan', '②', t]);
     }
     if (story.delay && canDelay) {
-      const base = (fixed ? r.fixed : r.scenarios)[0][f.kind];
-      const d = delayS[f.kind];
-      let t;
-      if (fixed) {
-        const lost = base.paidYears - d.paidYears;
-        t = `遲 ${delayS.delay} 年（${delayS.age} 歲）先開始（${f.name}）：同樣每月 ${money(d.monthly)}，只夠交到 <b>${reachText(d, maxAge)}</b>${lost > 0 ? `，<b class="bad">少交 ${lost} 年</b>` : ''}。`;
-      } else {
+      const lines = delayKinds(delayS).map((k) => {
+        const nm = k === 'bank' ? '銀行' : '儲蓄計劃';
+        const base = (fixed ? r.fixed : r.scenarios)[0][k];
+        const d = delayS[k];
+        if (fixed) {
+          const lost = base.paidYears - d.paidYears;
+          return `${nm}：同樣每月 ${money(d.monthly)}，由交到 ${reachText(base, maxAge)} 變成只夠交到 <b>${reachText(d, maxAge)}</b>${lost > 0 ? `（<b class="bad">少交 ${lost} 年</b>）` : ''}`;
+        }
         const up = d.monthly - base.monthly;
-        t = `遲 ${delayS.delay} 年（${delayS.age} 歲）先開始（${f.name}）：每月要儲 <b>${money(d.monthly)}</b>，<b class="bad">比而家開始多 ${money(up)}（+${pct(up / base.monthly, 0)}）</b>。`;
-      }
-      notes.push(['delay', '③', t]);
+        return `${nm}：每月由 ${money(base.monthly)} 變 <b>${money(d.monthly)}</b>（<b class="bad">多 ${money(up)}，+${pct(up / base.monthly, 0)}</b>）`;
+      });
+      notes.push(['delay', '③', `遲 ${delayS.delay} 年（${delayS.age} 歲）先開始儲：<br>${lines.join('<br>')}`]);
     }
     $('storyNotes').innerHTML = notes.length
       ? notes.map(([k, n, t]) => `<div class="story-note story-note--${k}"><span class="story-note__n">${n}</span><p>${t}</p></div>`).join('')
@@ -595,11 +650,12 @@
 
   function renderFuture(inp, r) {
     const labels = r.rows.map((x) => `${x.age}歲`);
-    const pm = payerMap(r, inp);
     const f = focus(r);
+    const ck = chartFocus(r);
+    const pm = payerMap(r, inp, ck);
     const ageList = r.rows.map((x) => x.age);
     const mode = C.PAYMENT_MODES[inp.mode];
-    const isSave = (i) => pm[ageList[i]] === 'save';
+    const isSave = (i) => pm[ageList[i]] === 'save' || pm[ageList[i]] === 'target';
     const isOut = (i) => pm[ageList[i]] === 'out';
     const saveCol = COLORS.premium, selfCol = COLORS.prep, outCol = '#4b5563';
     const datasets = [{
@@ -613,9 +669,11 @@
     const selfR = ranges(pm, ageList, 'self');
     const outR = ranges(pm, ageList, 'out');
     const saveR = ranges(pm, ageList, 'save');
+    const targetR = ranges(pm, ageList, 'target');
     // 圖例用
     if (selfR.length) datasets.push({ label: `自己交（${selfR.join('、')}歲）`, data: [], borderColor: selfCol, backgroundColor: selfCol, legendOnly: true });
-    if (saveR.length) datasets.push({ label: `由${f.name}支付（${saveR.join('、')}歲）`, data: [], borderColor: saveCol, backgroundColor: saveCol, legendOnly: true });
+    if (saveR.length) datasets.push({ label: `由${ck.name}支付（${saveR.join('、')}歲）`, data: [], borderColor: saveCol, backgroundColor: saveCol, legendOnly: true });
+    if (targetR.length) datasets.push({ label: `目標用儲蓄交（${targetR.join('、')}歲）`, data: [], borderColor: saveCol, backgroundColor: saveCol, legendOnly: true });
     if (outR.length) datasets.push({ label: `錢用完，自己交（${outR.join('、')}歲）`, data: [], borderColor: outCol, backgroundColor: outCol, legendOnly: true });
     if (inp.inflation > 0) {
       datasets.push({ label: '只計年齡升幅（未計額外加價）', data: r.rows.map((x) => x.table * mode.factor * mode.periods * (1 + inp.levy)), borderColor: COLORS.table, borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5, fill: false, tension: 0.2 });
@@ -633,17 +691,19 @@
     };
     const delayS = (inp.calc === 'fixed' ? r.fixed : r.scenarios)[1];
     const canBank = !!(dep.bank && dep.bank.feasible);
-    const canDelay = !!(delayS && delayS[f.kind].feasible);
+    const canDelay = !!(delayS && (delayS.bank.feasible || delayS.plan.feasible));
     if (story.bank && canBank) depBar(dep.bank, '銀行', inp.bankRate, 'rgba(36,89,201,.75)');
     if (story.plan) depBar(dep.plan, '儲蓄計劃', inp.planRate, 'rgba(194,106,6,.8)');
     if (story.delay && canDelay) {
-      const d = delayS[f.kind];
-      datasets.push({
-        type: 'bar', order: 2, deposit: true, monthly: d.monthly,
-        label: `遲 ${delayS.delay} 年先儲（${f.name}）供款：每月 ${money(d.monthly)} × ${d.years} 年`,
-        data: ageList.map((a) => (a >= d.depositFrom && a <= d.depositTo ? d.annual : null)),
-        backgroundColor: stripes(), borderColor: COLORS.premium, borderWidth: 1, borderRadius: 2, maxBarThickness: 14, categoryPercentage: 0.8, barPercentage: 0.9,
-      });
+      for (const k of delayKinds(delayS)) {
+        const d = delayS[k];
+        datasets.push({
+          type: 'bar', order: 2, deposit: true, monthly: d.monthly,
+          label: `遲 ${delayS.delay} 年先儲（${k === 'bank' ? '銀行' : '儲蓄計劃'}）供款：每月 ${money(d.monthly)} × ${d.years} 年`,
+          data: ageList.map((a) => (a >= d.depositFrom && a <= d.depositTo ? d.annual : null)),
+          backgroundColor: stripes(k), borderColor: k === 'bank' ? COLORS.bank : COLORS.plan, borderWidth: 1, borderRadius: 2, maxBarThickness: 14, categoryPercentage: 0.8, barPercentage: 0.9,
+        });
+      }
     }
     renderStory(inp, r, f, dep, delayS, canBank, canDelay);
     const opts = baseOptions();
@@ -653,12 +713,12 @@
       if (c.dataset.deposit) return `${c.dataset.label.split(' 供款')[0]} 供款：每年 ${money(c.parsed.y)}（每月 ${money(c.dataset.monthly)}）`;
       if (c.dataset.label !== '全年保費') return `${c.dataset.label}：${money(c.parsed.y)}`;
       const who = pm[ageList[c.dataIndex]];
-      return `全年保費：${money(c.parsed.y)}（${who === 'save' ? `由${f.name}支付` : who === 'out' ? '儲蓄用完，自己交' : '自己交'}）`;
+      return `全年保費：${money(c.parsed.y)}（${who === 'save' ? `由${ck.name}支付` : who === 'target' ? '目標用儲蓄交' : who === 'out' ? '儲蓄用完，自己交' : '自己交'}）`;
     };
     premiumLabels = [{ from: `${inp.startAge}歲`, to: `${inp.endAge}歲`, title: `${inp.startAge}–${inp.endAge} 歲總保費（${r.coverYears} 年）`, value: money(r.totalPayable), color: COLORS.premium, row: 0 }];
-    const split = fixedSplit(inp, r, f);
+    const split = ck ? fixedSplit(inp, r, ck) : null;
     if (split) {
-      if (split.save.years > 0) premiumLabels.push({ from: `${split.save.from}歲`, to: `${split.save.to}歲`, title: `${f.name}支付 ${split.save.from}–${split.save.to} 歲（${split.save.years} 年）`, value: money(split.save.amount), color: COLORS.premium, row: 1 });
+      if (split.save.years > 0) premiumLabels.push({ from: `${split.save.from}歲`, to: `${split.save.to}歲`, title: `${ck.name}支付 ${split.save.from}–${split.save.to} 歲（${split.save.years} 年）`, value: money(split.save.amount), color: COLORS.premium, row: 1 });
       if (split.out.years > 0) premiumLabels.push({ from: `${split.out.from}歲`, to: `${split.out.to}歲`, title: `錢用完，自己交 ${split.out.from}–${split.out.to} 歲（${split.out.years} 年）`, value: money(split.out.amount), color: outCol, row: 1 });
     }
     opts.layout = { padding: { top: 4 } };
@@ -666,9 +726,7 @@
     chart('premiumChart', { type: 'line', data: { labels, datasets }, options: opts });
 
     // 總保費大字
-    const prepSum = r.rows.filter((x) => x.age < inp.startAge).reduce((t, x) => t + x.payable, 0);
     const avg = r.totalPayable / r.coverYears;
-    const nowYears = r.totalPayable / r.now.payable;
     const splitHtml = split ? (() => {
       const T = r.totalPayable;
       const seg = (cls, v) => (v > 0.5 ? `<span class="split__seg split__seg--${cls}" style="width:${(v / T) * 100}%"></span>` : '');
@@ -677,25 +735,27 @@
         <div class="split__bar">${seg('before', split.before.amount)}${seg('save', split.save.amount)}${seg('out', split.out.amount)}</div>
         <div class="split__items">
           ${item('before', `${split.before.from}–${split.before.to} 歲供款期內自己交`, split.before)}
-          ${item('save', `${split.save.from}–${split.save.to} 歲由${f.name}支付`, split.save)}
+          ${item('save', `${split.save.from}–${split.save.to} 歲由${ck.name}支付`, split.save)}
           ${item('out', `${split.out.from}–${split.out.to} 歲錢用完，自己交`, split.out)}
         </div></div>`;
     })() : '';
     $('totalHero').innerHTML = `<div class="total-hero__main"><span>${inp.startAge}–${inp.endAge} 歲要交嘅保費，總共</span><b>${money(r.totalPayable)}</b>
         <small>共 ${r.coverYears} 年 · 平均每年 ${money(avg)} · 約每月 ${money(avg / 12)}</small></div>
       <div class="total-hero__facts">
-        <div><span>相當於按而家保費交</span><b>${Math.round(nowYears)} 年</b></div>
-        <div><span>最貴嗰年（${r.peak.age} 歲）</span><b>${money(r.peak.payable)}</b></div>
-        ${prepSum > 0 ? `<div><span>未計 ${inp.currentAge}–${inp.startAge - 1} 歲自己交</span><b>${money(prepSum)}</b></div>` : ''}
+        <div class="fact-now"><span>今年（${inp.currentAge} 歲）保費</span><b>${money(r.now.payable)}</b></div>
+        <div class="fact-peak"><span>${r.peak.age} 歲時保費</span><b>${money(r.peak.payable)}</b><em>係而家嘅 ${(r.peak.payable / r.now.payable).toFixed(1)} 倍</em></div>
       </div>${splitHtml}`;
 
     // 講清楚邊段邊個交
     const parts = [];
-    const res = inp.calc === 'fixed' ? f.fx : r[f.kind];
-    if (res && res.feasible) {
+    const res = ck ? (inp.calc === 'fixed' ? ck.fx : r[ck.kind]) : null;
+    if (!ck) {
+      if (inp.startAge > inp.currentAge) parts.push(`${inp.currentAge}–${inp.startAge - 1} 歲保費自己交`);
+      parts.push(`目標由 ${inp.startAge} 歲起用儲落嘅錢交，交到 ${inp.endAge} 歲`);
+    } else if (res && res.feasible) {
       if (inp.startAge > inp.currentAge) parts.push(`${inp.currentAge}–${inp.startAge - 1} 歲自己交，同時儲錢`);
-      if (res.withdrawFrom > inp.startAge) parts.push(`${inp.startAge}–${Math.min(res.withdrawFrom - 1, inp.endAge)} 歲仲喺${f.name}供款期，未可以提取，保費都係自己交`);
-      if (saveR.length) parts.push(`${saveR.join('、')} 歲由${f.name}支付`);
+      if (res.withdrawFrom > inp.startAge) parts.push(`${inp.startAge}–${Math.min(res.withdrawFrom - 1, inp.endAge)} 歲仲喺${ck.name}供款期，未可以提取，保費都係自己交`);
+      if (saveR.length) parts.push(`${saveR.join('、')} 歲由${ck.name}支付`);
       if (inp.calc === 'fixed' && res.runOutAge != null && res.runOutAge <= inp.endAge) parts.push(`${res.runOutAge} 歲起錢用完，要自己交`);
     }
     $('futureSub').textContent = '';
@@ -749,21 +809,27 @@
       <div class="opt__note">${note}</div></div>`;
   }
 
+  const shownKinds = () => ['bank', 'plan'].filter((k) => story[k]);
+
   function renderCompare(inp, r) {
+    $('secSave').hidden = !shownKinds().length;
+    $('secDelay').hidden = !story.delay;
     $('totalTitle').textContent = inp.calc === 'fixed' ? '可以交到幾歲' : '總共要拎出嚟';
     if (inp.calc === 'fixed') return renderCompareFixed(inp, r);
     $('saveTitle').textContent = '要儲幾多';
-    $('saveSub').textContent = '兩個方法用同一套計法比較：每年年初供款、年末計息；到期每年提取當年保費，最後剛好用完。★ 代表總共要拎出嚟嘅錢較少。';
-    const ok = [r.bank, r.plan].filter((x) => x.feasible).sort((a, b) => a.totalOutlay - b.totalOutlay);
+    $('saveSub').textContent = '用同一套計法：每月月初供款、按月複息；到期每年年頭提取當年保費，最後剛好用完。★ 代表總共要拎出嚟嘅錢較少。';
+    const show = shownKinds();
+    const ok = show.map((k) => r[k]).filter((x) => x.feasible).sort((a, b) => a.totalOutlay - b.totalOutlay);
     const best = ok.length === 2 && ok[1].totalOutlay - ok[0].totalOutlay > 0.5 ? ok[0] : null;
     const saved = ok.length ? r.totalPayable - ok[0].totalOutlay : 0;
     const cards = { bank: optCard('bank', r.bank, inp, r, best, r.plan), plan: optCard('plan', r.plan, inp, r, best, r.bank) };
-    const order = focus(r).kind === 'bank' ? ['bank', 'plan'] : ['plan', 'bank'];
-    $('compare').innerHTML = cards[order[0]] + cards[order[1]] +
+    const order = ['bank', 'plan'].filter((k) => show.includes(k));
+    $('compare').classList.toggle('compare--one', order.length === 1);
+    $('compare').innerHTML = order.map((k) => cards[k]).join('') +
       `<div class="baseline">如果完全唔預先儲：${inp.startAge}–${inp.endAge} 歲要自己交 <b>${money(r.totalPayable)}</b>。${ok.length && saved > 0 ? `預先儲最多可以少拎 ${money(saved)}（${pct(saved / r.totalPayable)}）出嚟。` : ''}</div>`;
 
     drawTotals(inp, r);
-    drawBalance(inp, r.bank, r.plan);
+    drawBalance(inp, story.bank ? r.bank : null, story.plan ? r.plan : null);
   }
 
   function drawTotals(inp, r) {
@@ -773,6 +839,7 @@
       { name: `儲蓄計劃 ${pct(inp.planRate)}`, kind: 'plan', v: r.plan.totalOutlay, sub: `每月 ${money(r.plan.monthly)} × ${r.plan.years} 年${r.plan.outOfPocket > 0.5 ? ' ＋ 自己交部分保費' : ''}` },
       { name: '完全唔儲', kind: 'none', v: r.totalPayable, sub: `${inp.startAge}–${inp.endAge} 歲全部自己交` },
     ];
+    for (let i = tot.length - 1; i >= 0; i--) if (tot[i].kind !== 'none' && !story[tot[i].kind]) tot.splice(i, 1);
     const tmax = Math.max(...tot.map((x) => x.v || 0));
     const minV = Math.min(...tot.filter((x) => x.v != null).map((x) => x.v));
     $('totalBars').innerHTML = tot.map((x) => `<div class="hbar${x.v === minV ? ' hbar--best' : ''}">
@@ -788,7 +855,7 @@
     const ages = [];
     for (let a = inp.currentAge; a <= inp.endAge; a++) ages.push(a);
     const series = (res) => {
-      if (!res.feasible) return ages.map(() => null);
+      if (!res || !res.feasible) return ages.map(() => null);
       const m = new Map(res.balances.map((b) => [b.age, b.balance]));
       return ages.map((a) => (m.has(a) ? m.get(a) : null));
     };
@@ -797,8 +864,8 @@
       data: {
         labels: ages.map((a) => `${a}歲`),
         datasets: [
-          { label: '銀行儲蓄餘額', data: series(r.bank), borderColor: COLORS.bank, backgroundColor: 'rgba(36,89,201,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 },
-          { label: '儲蓄計劃餘額', data: series(r.plan), borderColor: COLORS.plan, backgroundColor: 'rgba(194,106,6,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 },
+          ...(r.bank ? [{ label: '銀行儲蓄餘額', data: series(r.bank), borderColor: COLORS.bank, backgroundColor: 'rgba(36,89,201,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
+          ...(r.plan ? [{ label: '儲蓄計劃餘額', data: series(r.plan), borderColor: COLORS.plan, backgroundColor: 'rgba(194,106,6,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
         ],
       },
       options: baseOptions(),
@@ -838,12 +905,14 @@
   function renderCompareFixed(inp, r) {
     const fb = r.fixed[0].bank, fp = r.fixed[0].plan;
     $('saveTitle').textContent = `每月儲 ${money(inp.monthlySaving)} 夠交到幾歲`;
-    $('saveSub').textContent = '計埋利息：先儲錢，到期每年提取當年保費，剩低嘅錢繼續滾存，直至用完。★ 代表交得最耐。';
+    $('saveSub').textContent = '計埋利息：每月月初供款、按月複息；到期每年年頭提取當年保費，剩低嘅錢繼續滾存，直至用完。★ 代表交得最耐。';
+    const show = shownKinds();
     const ok = [fb, fp].filter((x) => x.feasible).sort((a, b) => b.paidYears - a.paidYears || (b.leftoverAtTarget || 0) - (a.leftoverAtTarget || 0));
     const best = ok.length === 2 && (ok[0].paidYears > ok[1].paidYears || (ok[0].leftoverAtTarget || 0) - (ok[1].leftoverAtTarget || 0) > 1) ? ok[0] : null;
-    const cards = { bank: optCardFixed('bank', fb, inp, r, best), plan: optCardFixed('plan', fp, inp, r, best) };
-    const order = focus(r).kind === 'bank' ? ['bank', 'plan'] : ['plan', 'bank'];
-    $('compare').innerHTML = cards[order[0]] + cards[order[1]] +
+    const cards = { bank: optCardFixed('bank', fb, inp, r, show.length === 2 ? best : null), plan: optCardFixed('plan', fp, inp, r, show.length === 2 ? best : null) };
+    const order = ['bank', 'plan'].filter((k) => show.includes(k));
+    $('compare').classList.toggle('compare--one', order.length === 1);
+    $('compare').innerHTML = order.map((k) => cards[k]).join('') +
       `<div class="baseline">目標 ${inp.startAge}–${inp.endAge} 歲總保費 <b>${money(r.totalPayable)}</b>，${r.peak.age} 歲時一年要 ${money(r.peak.payable)}。</div>`;
 
     // 可以交到幾歲：橫條（以目標年數為 100%）
@@ -852,7 +921,7 @@
     const items = [
       { name: `銀行 ${pct(inp.bankRate)}`, kind: 'bank', fx: fb },
       { name: `儲蓄計劃 ${pct(inp.planRate)}`, kind: 'plan', fx: fp },
-    ];
+    ].filter((x) => show.includes(x.kind));
     $('totalBars').innerHTML = items.map((x) => {
       const fx = x.fx;
       if (!fx.feasible) return `<div class="hbar"><div class="hbar__name"><b>${x.name}</b><span>冇時間預先儲</span></div><div class="hbar__track"></div><div class="hbar__v">—</div></div>`;
@@ -865,7 +934,7 @@
         <div class="hbar__v">交到 ${reachText(fx, maxAge)}<span class="${fx.reachesTarget ? '' : 'miss'}">${fx.reachesTarget ? `✓ 夠交到 ${inp.endAge} 歲` : `之後自己交 ${money(fx.shortfall)}`}</span></div>
       </div>`;
     }).join('') + `<p class="hint">條長度代表目標 ${inp.startAge}–${inp.endAge} 歲入面，由儲蓄支付咗幾多年。</p>`;
-    drawBalance(inp, fb, fp);
+    drawBalance(inp, story.bank ? fb : null, story.plan ? fp : null);
   }
 
   function renderDelayFixed(inp, r, f) {
@@ -981,7 +1050,7 @@
   function renderDetail(inp, r) {
     const mode = modeInfo();
     const pm = payerMap(r, inp);
-    const fName = focus(r).name;
+    const fName = (chartFocus(r) || {}).name || '儲蓄';
     const differs = inp.inflation > 0 || inp.levy > 0 || state.m !== 'annual';
     const head = ['年齡', '邊個交',
       ...(differs ? ['保費表（年繳）', '全年實付'] : ['全年保費']),
@@ -991,10 +1060,10 @@
       const ch = prev ? x.payable / prev.payable - 1 : null;
       const chCls = ch == null ? '' : ch > 0.0005 ? 'up' : ch < -0.0005 ? 'down' : '';
       const who = pm[x.age];
-      const cells = [`${x.age}歲`, who === 'save' ? `由${fName}支付` : who === 'out' ? '儲蓄用完，自己交' : '自己交',
+      const cells = [`${x.age}歲`, who === 'save' ? `由${fName}支付` : who === 'target' ? '目標用儲蓄交' : who === 'out' ? '儲蓄用完，自己交' : '自己交',
         ...(differs ? [money(x.table), money(x.payable)] : [money(x.payable)]),
         ...(state.m !== 'annual' ? [money(x.perInstalment)] : [])];
-      return `<tr class="${who === 'save' ? 'cover' : 'prep'}">${cells.map((c) => `<td>${c}</td>`).join('')}<td class="${chCls}">${ch == null ? '—' : (ch > 0 ? '+' : '') + pct(ch)}</td></tr>`;
+      return `<tr class="${who === 'save' || who === 'target' ? 'cover' : 'prep'}">${cells.map((c) => `<td>${c}</td>`).join('')}<td class="${chCls}">${ch == null ? '—' : (ch > 0 ? '+' : '') + pct(ch)}</td></tr>`;
     }).join('');
     const why = [];
     if (state.m !== 'annual') why.push(`${mode.label}全年貴 ${pct(mode.factor * mode.periods - 1, 0)}`);
@@ -1015,8 +1084,8 @@
       r.bank.feasible ? `銀行儲蓄：年利率 ${pct(inp.bankRate)}，由 ${inp.currentAge} 歲儲到 ${inp.startAge - 1} 歲，${inp.startAge} 歲起每年提取。` : '銀行儲蓄：即刻要用儲蓄交保費，冇時間預先儲錢，唔適用。',
       `儲蓄計劃：假設年回報 ${pct(inp.planRate)}，供款 ${inp.planYears} 年，供款期後先開始提取；未供滿之前到期嘅保費要自己交。`,
       inp.calc === 'fixed'
-        ? `每月儲定數：每月 ${money(inp.monthlySaving)}，每年年初供款及交保費、年末計息；錢用完之後嘅保費要自己交。`
-        : '兩者均假設每年年初供款及交保費、年末計息，最後餘額為零。',
+        ? `每月儲定數：每月 ${money(inp.monthlySaving)}，每月月初供款、按月複息，每年年頭提取當年保費；錢用完之後嘅保費要自己交。`
+        : '兩者均假設每月月初供款、按月複息（以年利率計），每年年頭提取當年保費，最後餘額為零。',
     ];
     const taxLine = inp.taxRate > 0
       ? `扣稅：按邊際稅率 ${pct(inp.taxRate, 0)}，今年可慳 <strong class="tax-hl">${money(r.tax.saved)}</strong>；${inp.startAge}–${inp.endAge} 歲累計約慳 <strong class="tax-hl">${money(r.tax.lifetimeSaved)}</strong>（每年最多扣 HK$8,000，假設稅制不變）。`

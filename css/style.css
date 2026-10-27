@@ -567,3 +567,25 @@ details.more[open] summary::before { content: "▾ "; }
   .nosave__cell { padding: 5px 10px; }
   .nosave__cell b { font-size: 15px; }
 }
+
+/* v6：撳先顯示 */
+.kpi--locked .kpi__v { color: var(--ink-3); }
+.kpi__reveal { display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; color: var(--brand); border: 1.5px dashed var(--brand-line, #B4E2C8); background: var(--brand-soft); border-radius: 8px; padding: 4px 12px; }
+.kpi--bank.kpi--locked .kpi__reveal { color: var(--bank); border-color: rgba(36,89,201,.35); background: var(--bank-soft); }
+.kpi--plan.kpi--locked .kpi__reveal { color: var(--plan); border-color: rgba(194,106,6,.35); background: var(--plan-soft); }
+.kpi--alert.kpi--locked .kpi__reveal { color: var(--premium); border-color: rgba(198,40,40,.3); background: var(--premium-soft); }
+.kpi--locked { cursor: pointer; }
+.kd { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.kd__row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: clamp(13px, 7.5cqi, 18px); }
+.kd__row > span:first-child { font-size: 12px; font-weight: 700; color: var(--ink-2); font-family: var(--font); }
+.kd__row--bank > span:first-child { color: var(--bank); }
+.kd__row--plan > span:first-child { color: var(--plan); }
+.kd__v { white-space: nowrap; color: var(--ink-3); font-weight: 700; }
+.kd__v b { color: var(--premium); font-weight: 900; }
+.kd__v small { font-size: 11px; }
+.story__title { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.story__all { font: inherit; font-size: 12.5px; font-weight: 700; color: var(--brand); background: none; border: 0; padding: 4px 6px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.compare--one { grid-template-columns: 1fr; }
+.total-hero__facts .fact-peak { flex-wrap: wrap; }
+.total-hero__facts .fact-peak em { flex-basis: 100%; font-style: normal; font-size: 12px; color: var(--premium); font-weight: 700; text-align: right; }
+@media print { .kpi__reveal { display: none; } }

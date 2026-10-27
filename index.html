@@ -163,17 +163,17 @@
             <div class="kpi__v" id="kTotal">—</div>
             <div class="kpi__s" id="kTotalSub"></div>
           </a>
-          <a class="kpi kpi--bank" href="#secSave">
+          <a class="kpi kpi--bank" href="#secSave" data-step="bank">
             <div class="kpi__q"><span class="num">2</span><span id="kBankTitle">銀行要點儲</span><span class="kpi__tag" id="kBankTag"></span></div>
             <div class="kpi__v" id="kBank">—</div>
             <div class="kpi__s" id="kBankSub"></div>
           </a>
-          <a class="kpi kpi--plan" href="#secSave">
+          <a class="kpi kpi--plan" href="#secSave" data-step="plan">
             <div class="kpi__q"><span class="num">3</span><span id="kPlanTitle">儲蓄計劃要點儲</span><span class="kpi__tag" id="kPlanTag"></span></div>
             <div class="kpi__v" id="kPlan">—</div>
             <div class="kpi__s" id="kPlanSub"></div>
           </a>
-          <a class="kpi kpi--alert" href="#secDelay">
+          <a class="kpi kpi--alert" href="#secDelay" data-step="delay">
             <div class="kpi__q"><span class="num">4</span>遲儲嘅代價<span class="kpi__tag" id="kDelayTag"></span></div>
             <div class="kpi__v" id="kDelay">—</div>
             <div class="kpi__s" id="kDelaySub"></div>
@@ -193,7 +193,7 @@
           <div class="chart chart--tall"><canvas id="premiumChart" aria-label="逐年保費圖"></canvas></div>
           <p class="hint chart-tip no-print">滑鼠指住（或者手指撳住）條線，可以睇每一年嘅保費。</p>
           <div class="story no-print" id="story">
-            <div class="story__title">一步步睇點樣儲錢交保費</div>
+            <div class="story__title"><span>一步步睇點樣儲錢交保費</span><button type="button" class="story__all" id="storyAll">全部顯示</button></div>
             <div class="story__steps">
               <button type="button" class="story__btn story__btn--bank" data-step="bank" aria-pressed="false"><span class="story__n">①</span><span>銀行點儲</span></button>
               <button type="button" class="story__btn story__btn--plan" data-step="plan" aria-pressed="false"><span class="story__n">②</span><span>儲蓄計劃點儲</span></button>

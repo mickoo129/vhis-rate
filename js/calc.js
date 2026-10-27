@@ -82,33 +82,41 @@
     let outOfPocket = 0;
     let withdrawn = 0;
     const firstAge = Math.min(depositFrom, startAge);
+    const mg = monthlyGrowth(rate);
     for (let age = firstAge; age <= endAge; age++) {
-      if (age >= depositFrom && age < depositFrom + years) A += 1;
-      const p = due[age] || 0;
-      if (p) {
-        if (age >= withdrawFrom) {
-          B += p;
-          withdrawn += p;
-          if (A > 0) need = Math.max(need, B / A);
-          else return { feasible: false, reason: '未開始供款已要提取' };
-        } else {
-          outOfPocket += p;
+      const depYear = age >= depositFrom && age < depositFrom + years;
+      for (let m = 0; m < 12; m++) {
+        if (depYear) A += 1 / 12; // 每月月初存入（以每 $1 年供款計）
+        if (m === 0) {
+          const p = due[age] || 0;
+          if (p) {
+            if (age >= withdrawFrom) {
+              B += p;
+              withdrawn += p;
+              if (A > 0) need = Math.max(need, B / A);
+              else return { feasible: false, reason: '未開始供款已要提取' };
+            } else {
+              outOfPocket += p;
+            }
+          }
         }
+        A *= mg;
+        B *= mg;
       }
-      A *= 1 + rate;
-      B *= 1 + rate;
     }
     const annual = need;
-    // 用解出嚟嘅供款再行一次，記錄每年餘額
+    // 用解出嚟嘅供款再行一次，記錄每年年尾餘額
     const balances = [];
     let bal = 0;
     for (let age = firstAge; age <= endAge; age++) {
-      const dep = age >= depositFrom && age < depositFrom + years ? annual : 0;
-      bal += dep;
+      const depYear = age >= depositFrom && age < depositFrom + years;
       const p = due[age] && age >= withdrawFrom ? due[age] : 0;
-      bal -= p;
-      balances.push({ age, deposit: dep, withdraw: p, balance: Math.max(bal, 0) });
-      bal *= 1 + rate;
+      for (let m = 0; m < 12; m++) {
+        if (depYear) bal += annual / 12;
+        if (m === 0) bal -= p;
+        bal *= mg;
+      }
+      balances.push({ age, deposit: depYear ? annual : 0, withdraw: p, balance: Math.max(bal, 0) });
     }
     const principal = annual * years;
     return {
@@ -127,6 +135,9 @@
       balances,
     };
   }
+
+  // 年利率（實際年回報）→ 每月增長倍數
+  const monthlyGrowth = (rate) => Math.pow(1 + rate, 1 / 12);
 
   function bankPlan(rows, inp, delay = 0) {
     const depositFrom = inp.currentAge + delay;
@@ -172,28 +183,33 @@
     let shortfall = 0; // 錢用完之後要自己交（到目標年齡）
     let leftoverAtTarget = null;
     const balances = [];
+    const mg = monthlyGrowth(rate);
     for (let age = Math.min(depositFrom, startAge); age <= lastAge; age++) {
-      const dep = age >= depositFrom && age < depositFrom + years ? annual : 0;
-      bal += dep;
-      const p = due[age] || 0;
+      const depYear = age >= depositFrom && age < depositFrom + years;
       let paid = 0;
-      if (p) {
-        if (age < withdrawFrom) {
-          if (age <= target) before += p;
-        } else if (runOutAge == null && bal >= p - 0.005) {
-          paid = p;
-        } else {
-          if (runOutAge == null) { runOutAge = age; partial = Math.max(bal, 0); paid = partial; }
-          if (age <= target) shortfall += p - paid;
+      for (let m = 0; m < 12; m++) {
+        if (depYear) bal += annual / 12; // 每月月初存入
+        if (m === 0) {
+          const p = due[age] || 0;
+          if (p) {
+            if (age < withdrawFrom) {
+              if (age <= target) before += p;
+            } else if (runOutAge == null && bal >= p - 0.005) {
+              paid = p;
+            } else {
+              if (runOutAge == null) { runOutAge = age; partial = Math.max(bal, 0); paid = partial; }
+              if (age <= target) shortfall += p - paid;
+            }
+            bal -= paid;
+            coveredAll += paid;
+            if (age <= target) covered += paid;
+          }
         }
-        bal -= paid;
-        coveredAll += paid;
-        if (age <= target) covered += paid;
+        bal *= mg;
       }
-      if (age <= target) balances.push({ age, deposit: dep, withdraw: paid, balance: Math.max(bal, 0) });
+      if (age <= target) balances.push({ age, deposit: depYear ? annual : 0, withdraw: paid, balance: Math.max(bal, 0) });
       if (age === target) leftoverAtTarget = Math.max(bal, 0);
       if (runOutAge != null && age >= target) break;
-      bal *= 1 + rate;
     }
     const principal = annual * years;
     const lastPaidAge = runOutAge == null ? lastAge : runOutAge - 1;
