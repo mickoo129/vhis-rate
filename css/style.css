@@ -33,7 +33,7 @@ body {
   font-size: 15px;
   line-height: 1.55;
 }
-.wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+.wrap { max-width: calc(1320px + 2 * clamp(16px, 3vw, 32px)); margin: 0 auto; padding: 0 clamp(16px, 3vw, 32px); }
 h1, h2, h3 { margin: 0; line-height: 1.25; }
 small { font-weight: 400; color: var(--ink-3); }
 .num, .kpi__v, td, output { font-variant-numeric: tabular-nums; }
@@ -43,6 +43,8 @@ small { font-weight: 400; color: var(--ink-3); }
 .topbar { background: var(--brand-2); color: #fff; }
 .topbar__inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 18px; padding-bottom: 18px; flex-wrap: wrap; }
 .topbar h1 { font-size: 22px; font-weight: 900; letter-spacing: .02em; }
+.topbar__brand { display: flex; align-items: center; gap: 12px; }
+.topbar__brand .mk-logo { width: 40px; height: 40px; }
 .eyebrow { font-size: 12px; letter-spacing: .12em; opacity: .75; margin-bottom: 2px; }
 .topbar__actions { display: flex; gap: 8px; }
 
@@ -489,7 +491,13 @@ details.more[open] summary::before { content: "▾ "; }
   --mk-warn:#8A5B00; --mk-warn-soft:#FFF5DC; --mk-danger:#C62828; --mk-danger-soft:#FDECEC;
   --mk-sans:"Noto Sans HK","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
   --mk-num:"Barlow","Noto Sans HK",system-ui,sans-serif;
+  --mk-max:1320px;                        /* 內容最闊 */
+  --mk-gutter:clamp(16px,3vw,32px);       /* 兩邊留白：手機 16px → 桌面 32px */
 }
+/* 版面外框：工具可以用自己嘅 class，但數值要一樣 */
+.mk-wrap{width:100%;max-width:calc(var(--mk-max) + 2 * var(--mk-gutter));margin:0 auto;padding-left:var(--mk-gutter);padding-right:var(--mk-gutter);box-sizing:border-box}
+/* 標題旁 icon */
+.mk-logo{width:32px;height:32px;flex:none;display:block}
 .mk-ecard{display:flex;align-items:center;gap:16px 24px;flex-wrap:wrap;margin:28px 0 0;padding:20px 22px;border-radius:14px;border:1px solid var(--mk-brand-line);background:var(--mk-brand-soft);font-family:var(--mk-sans);color:var(--mk-ink);text-align:left}
 .mk-ecard-txt{flex:1;min-width:200px}
 .mk-ecard-txt b{display:block;font-size:17px;font-weight:700;margin-bottom:2px;color:var(--mk-ink)}
