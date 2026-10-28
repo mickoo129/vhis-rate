@@ -5,7 +5,7 @@
   const C = window.VHISCalc;
   const $ = (id) => document.getElementById(id);
 
-  const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 60, e: 90, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000 };
+  const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 60, e: 90, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000, x: '' };
   const COLORS = { premium: '#b3261e', prep: '#9aa3b2', table: '#1D2B2A', bank: '#2459c9', plan: '#c26a06' };
 
   // ---------- 格式 ----------
@@ -49,10 +49,56 @@
   }
 
   const product = () => DATA.products[state.p];
+  const MAX_PLANS = 3;
+  // 加多嘅計劃：網址入面用「產品~選項,產品~選項」
+  function extraList() {
+    return String(state.x || '').split(',').filter(Boolean).map((t) => {
+      const [productId, optionId] = t.split('~');
+      const p = DATA.products[productId];
+      if (!p) return null;
+      return { productId, optionId: p.options.some((o) => o.id === optionId) ? optionId : p.options[0].id };
+    }).filter(Boolean).slice(0, MAX_PLANS - 1);
+  }
+  const setExtra = (list) => { state.x = list.map((pl) => `${pl.productId}~${pl.optionId}`).join(','); };
+  const allPlans = () => [{ productId: state.p, optionId: state.o }, ...extraList()];
+  const maxAgeAll = () => Math.max(...allPlans().map((pl) => DATA.products[pl.productId].maxAge));
+  const planName = (pl) => {
+    const p = DATA.products[pl.productId];
+    const o = p.options.find((x) => x.id === pl.optionId) || p.options[0];
+    return `${p.short.split('（')[0]} · ${o.label}`;
+  };
+  function optionsHtml(p) {
+    const groups = [];
+    for (const o of p.options) {
+      let g = groups.find((x) => x.name === o.group);
+      if (!g) groups.push((g = { name: o.group, items: [] }));
+      g.items.push(o);
+    }
+    return groups.length === 1
+      ? groups[0].items.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('')
+      : groups.map((g) => `<optgroup label="${esc(g.name)}">${g.items.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('')}</optgroup>`).join('');
+  }
+  const productsHtml = () => Object.entries(DATA.products).map(([id, p]) => `<option value="${id}">${esc(p.short)}</option>`).join('');
+
+  function renderExtraPlans() {
+    const list = extraList();
+    $('planNo1').textContent = list.length ? '第 1 份計劃' : '計劃';
+    $('extraPlans').innerHTML = list.map((pl, i) => `<div class="plan-box" data-i="${i}">
+        <div class="plan-box__head"><span>第 ${i + 2} 份計劃</span><button type="button" class="plan-box__del" data-del="${i}" aria-label="移除第 ${i + 2} 份計劃">✕ 移除</button></div>
+        <label class="field"><span class="label">產品</span><select data-k="p">${productsHtml()}</select></label>
+        <label class="field"><span class="label">計劃選項</span><select data-k="o">${optionsHtml(DATA.products[pl.productId])}</select></label>
+      </div>`).join('');
+    $('extraPlans').querySelectorAll('.plan-box').forEach((box) => {
+      const pl = list[Number(box.dataset.i)];
+      box.querySelector('[data-k="p"]').value = pl.productId;
+      box.querySelector('[data-k="o"]').value = pl.optionId;
+    });
+    $('addPlan').hidden = list.length >= MAX_PLANS - 1;
+  }
 
   // ---------- 選單 ----------
   function fillAges(sel, from, to, value) {
-    const max = product().maxAge;
+    const max = maxAgeAll();
     let html = '';
     for (let a = from; a <= to; a++) html += `<option value="${a}">${a}歲${a === max && max >= 121 ? '或以上' : ''}</option>`;
     sel.innerHTML = html;
@@ -61,27 +107,18 @@
   }
 
   function fillProducts() {
-    $('product').innerHTML = Object.entries(DATA.products)
-      .map(([id, p]) => `<option value="${id}">${esc(p.short)}</option>`).join('');
+    $('product').innerHTML = productsHtml();
   }
 
   function fillOptions() {
     const p = product();
-    const groups = [];
-    for (const o of p.options) {
-      let g = groups.find((x) => x.name === o.group);
-      if (!g) groups.push((g = { name: o.group, items: [] }));
-      g.items.push(o);
-    }
-    $('option').innerHTML = groups.length === 1
-      ? groups[0].items.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('')
-      : groups.map((g) => `<optgroup label="${esc(g.name)}">${g.items.map((o) => `<option value="${o.id}">${esc(o.label)}</option>`).join('')}</optgroup>`).join('');
+    $('option').innerHTML = optionsHtml(p);
     if (!p.options.some((o) => o.id === state.o)) state.o = p.options[0].id;
     $('option').value = state.o;
   }
 
   function syncAges() {
-    const max = product().maxAge;
+    const max = maxAgeAll();
     state.a = fillAges($('currentAge'), 0, max, state.a);
     state.s = fillAges($('startAge'), state.a, max, state.s);
     state.e = fillAges($('endAge'), state.s, max, state.e);
@@ -94,6 +131,7 @@
   function syncControls() {
     $('product').value = state.p;
     fillOptions();
+    renderExtraPlans();
     syncAges();
     setSeg('genderSeg', state.g);
     setSeg('modeSeg', state.m);
@@ -110,10 +148,11 @@
     $('taxRate').value = state.tax;
     $('levy').checked = !!state.levy;
     const p = product();
-    const hint = [`保費表生效日期：${dateZh(p.effective)}`];
+    const ids = [...new Set(allPlans().map((pl) => pl.productId))];
+    const hint = [`保費表生效日期：${ids.map((id) => `${ids.length > 1 ? DATA.products[id].short.split('（')[0] + ' ' : ''}${dateZh(DATA.products[id].effective)}`).join('、')}`];
     if (p.maxIssueAge != null) hint.push(`投保年齡 0–${p.maxIssueAge} 歲，${p.maxIssueAge + 1} 歲或以上只適用於續保`);
-    hint.push(p.maxAgeNote);
-    if (p.supplementary) hint.push('晉逸係附加保障，需附加於其他醫保計劃；呢度只計附加保障本身嘅保費');
+    hint.push(ids.length > 1 ? '幾份計劃嘅保費會逐年加埋一齊計' : p.maxAgeNote);
+    if (ids.some((id) => DATA.products[id].supplementary)) hint.push('晉逸係附加保障，需附加於其他醫保計劃；呢度只計附加保障本身嘅保費');
     $('productHint').textContent = hint.join('。') + '。';
     $('bankRateOut').textContent = pct(state.br / 100);
     $('planRateOut').textContent = pct(state.pr / 100);
@@ -133,6 +172,33 @@
   function bind() {
     $('product').addEventListener('change', (e) => { state.p = e.target.value; changed(); });
     $('option').addEventListener('change', (e) => { state.o = e.target.value; changed(); });
+    $('addPlan').addEventListener('click', () => {
+      const list = extraList();
+      if (list.length >= MAX_PLANS - 1) return;
+      const used = new Set(allPlans().map((pl) => pl.productId));
+      const pid = ['lite', 'first', 'supreme', 'standard'].find((id) => !used.has(id)) || 'lite';
+      list.push({ productId: pid, optionId: DATA.products[pid].options[0].id });
+      setExtra(list);
+      changed();
+    });
+    $('extraPlans').addEventListener('click', (e) => {
+      const del = e.target.closest('[data-del]');
+      if (!del) return;
+      const list = extraList();
+      list.splice(Number(del.dataset.del), 1);
+      setExtra(list);
+      changed();
+    });
+    $('extraPlans').addEventListener('change', (e) => {
+      const box = e.target.closest('.plan-box');
+      if (!box) return;
+      const list = extraList();
+      const pl = list[Number(box.dataset.i)];
+      if (e.target.dataset.k === 'p') { pl.productId = e.target.value; pl.optionId = DATA.products[pl.productId].options[0].id; }
+      else pl.optionId = e.target.value;
+      setExtra(list);
+      changed();
+    });
     $('currentAge').addEventListener('change', (e) => {
       const old = state.a;
       state.a = Number(e.target.value);
@@ -226,6 +292,7 @@
   function inputs() {
     return {
       productId: state.p,
+      extraPlans: extraList(),
       optionId: state.o,
       gender: state.g,
       currentAge: state.a,
@@ -287,20 +354,21 @@
     $('inflationCombo').innerHTML = `<span>年齡升幅平均 <b>${f(ag)}</b></span><span>＋ 額外加價 <b>${f(inp.inflation)}</b></span><span class="combo__eq">≈ 合共每年 <b>${f(total)}</b></span>`;
   }
 
-  const optionLabel = () => product().options.find((o) => o.id === state.o).label;
+  const plansLabel = () => allPlans().map(planName).join(' ＋ ');
   const modeInfo = () => C.PAYMENT_MODES[state.m];
 
   function renderClient(inp, r) {
-    const p = product();
+    const ps = allPlans().map((pl) => DATA.products[pl.productId]);
     const tags = [
-      `${p.gendered ? (inp.gender === 'M' ? '男' : '女') + ' · ' : ''}現時 ${inp.currentAge} 歲`,
-      `${p.short} · ${optionLabel()}`,
+      `${ps.some((x) => x.gendered) ? (inp.gender === 'M' ? '男' : '女') + ' · ' : ''}現時 ${inp.currentAge} 歲`,
+      plansLabel(),
       inp.calc === 'fixed'
         ? `每月儲 ${money(inp.monthlySaving)} · 目標 ${inp.startAge}–${inp.endAge} 歲用儲蓄交保費`
         : `目標 ${inp.startAge}–${inp.endAge} 歲用儲蓄交保費（${r.coverYears} 年）`,
     ];
     let warn = '';
-    if (p.maxIssueAge != null && inp.currentAge > p.maxIssueAge)
+    const issue = Math.min(...ps.map((x) => (x.maxIssueAge == null ? 999 : x.maxIssueAge)));
+    if (issue < 999 && inp.currentAge > issue)
       warn = `<span class="tag tag--warn">${inp.currentAge} 歲只適用於續保，唔可以新投保</span>`;
     $('clientLine').innerHTML = tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('') + warn;
   }
@@ -351,7 +419,7 @@
     const fixed = inp.calc === 'fixed';
     const list = fixed ? r.fixed : r.scenarios;
     const s5 = list[1];
-    const maxAge = product().maxAge;
+    const maxAge = maxAgeAll();
     const ks = s5 ? ['bank', 'plan'].filter((k) => s5[k].feasible && list[0][k].feasible) : [];
     if (!ks.length) {
       $('kDelayTag').textContent = '';
@@ -392,7 +460,7 @@
 
   function renderKpisFixed(inp, r, f) {
     const fx = f.fx;
-    const maxAge = product().maxAge;
+    const maxAge = maxAgeAll();
     const one = (id, res, need) => {
       if (!res.feasible) { $(id).innerHTML = '<small>唔適用</small>'; $(id + 'Sub').innerHTML = '即刻要用儲蓄交保費，<br>冇時間預先儲錢'; return; }
       $(id).innerHTML = res.runOutAge == null || res.lastPaidAge >= res.withdrawFrom
@@ -600,7 +668,7 @@
     });
     $('storyDelayLabel').textContent = delayS ? `遲 ${delayS.delay} 年先儲` : '遲儲';
     $('storyAll').textContent = story.bank && story.plan && story.delay ? '全部收埋' : '全部顯示';
-    const maxAge = product().maxAge;
+    const maxAge = maxAgeAll();
     const fixed = inp.calc === 'fixed';
     const notes = [];
     const b = dep.bank, p = dep.plan;
@@ -646,6 +714,20 @@
     $('storyNotes').innerHTML = notes.length
       ? notes.map(([k, n, t]) => `<div class="story-note story-note--${k}"><span class="story-note__n">${n}</span><p>${t}</p></div>`).join('')
       : '<p class="hint story-empty no-print">撳上面嘅掣，一步步喺圖上加入供款柱。</p>';
+  }
+
+  // 幾份計劃：各佔總保費幾多
+  const MIX_COLORS = ['#0E5E57', '#00A758', '#7FB8A8'];
+  function mixHtml(inp, r) {
+    const plans = allPlans();
+    if (plans.length < 2) return '';
+    const cover = r.rows.filter((x) => x.covered);
+    const tot = plans.map((pl, i) => cover.reduce((t, x) => t + x.parts[i], 0));
+    const T = tot.reduce((a, b) => a + b, 0);
+    return `<div class="mix">
+      <div class="mix__bar">${tot.map((v, i) => `<span style="width:${(v / T) * 100}%;background:${MIX_COLORS[i]}"></span>`).join('')}</div>
+      <div class="mix__items">${plans.map((pl, i) => `<div class="mix__item"><i style="background:${MIX_COLORS[i]}"></i><span>${esc(planName(pl))}</span><b>${money(tot[i])}</b><small>${pct(tot[i] / T, 0)} · 今年 ${money(r.now.parts[i])}</small></div>`).join('')}</div>
+    </div>`;
   }
 
   function renderFuture(inp, r) {
@@ -713,7 +795,11 @@
       if (c.dataset.deposit) return `${c.dataset.label.split(' 供款')[0]} 供款：每年 ${money(c.parsed.y)}（每月 ${money(c.dataset.monthly)}）`;
       if (c.dataset.label !== '全年保費') return `${c.dataset.label}：${money(c.parsed.y)}`;
       const who = pm[ageList[c.dataIndex]];
-      return `全年保費：${money(c.parsed.y)}（${who === 'save' ? `由${ck.name}支付` : who === 'target' ? '目標用儲蓄交' : who === 'out' ? '儲蓄用完，自己交' : '自己交'}）`;
+      const line = `全年保費：${money(c.parsed.y)}（${who === 'save' ? `由${ck.name}支付` : who === 'target' ? '目標用儲蓄交' : who === 'out' ? '儲蓄用完，自己交' : '自己交'}）`;
+      const plans = allPlans();
+      if (plans.length < 2) return line;
+      const row = r.rows[c.dataIndex];
+      return [line, ...plans.map((pl, i) => `  ${planName(pl)}：${money(row.parts[i])}`)];
     };
     premiumLabels = [{ from: `${inp.startAge}歲`, to: `${inp.endAge}歲`, title: `${inp.startAge}–${inp.endAge} 歲總保費（${r.coverYears} 年）`, value: money(r.totalPayable), color: COLORS.premium, row: 0 }];
     const split = ck ? fixedSplit(inp, r, ck) : null;
@@ -744,7 +830,7 @@
       <div class="total-hero__facts">
         <div class="fact-now"><span>今年（${inp.currentAge} 歲）保費</span><b>${money(r.now.payable)}</b></div>
         <div class="fact-peak"><span>${r.peak.age} 歲時保費</span><b>${money(r.peak.payable)}</b><em>係而家嘅 ${(r.peak.payable / r.now.payable).toFixed(1)} 倍</em></div>
-      </div>${splitHtml}`;
+      </div>${mixHtml(inp, r)}${splitHtml}`;
 
     // 講清楚邊段邊個交
     const parts = [];
@@ -878,7 +964,7 @@
     if (!fx.feasible) {
       return `<div class="opt opt--na"><div class="opt__name"><span>${name}</span></div><div class="opt__big">唔適用</div><div class="opt__note">即刻要用儲蓄交保費，冇時間預先儲錢。</div></div>`;
     }
-    const maxAge = product().maxAge;
+    const maxAge = maxAgeAll();
     const isBest = best === fx;
     const big = fx.lastPaidAge >= fx.withdrawFrom || fx.runOutAge == null
       ? `<span class="${fx.reachesTarget ? 'ok' : 'short'}">交到 ${reachText(fx, maxAge)}</span>`
@@ -917,7 +1003,7 @@
 
     // 可以交到幾歲：橫條（以目標年數為 100%）
     const target = inp.endAge - inp.startAge + 1;
-    const maxAge = product().maxAge;
+    const maxAge = maxAgeAll();
     const items = [
       { name: `銀行 ${pct(inp.bankRate)}`, kind: 'bank', fx: fb },
       { name: `儲蓄計劃 ${pct(inp.planRate)}`, kind: 'plan', fx: fp },
@@ -939,7 +1025,7 @@
 
   function renderDelayFixed(inp, r, f) {
     const k = f.kind;
-    const maxAge = product().maxAge;
+    const maxAge = maxAgeAll();
     $('delaySub').textContent = `同樣每月儲 ${money(inp.monthlySaving)}，越遲開始，儲到嘅錢越少，可以交保費嘅年數就越短。`;
     $('keyBaseText').textContent = '可以由儲蓄交嘅年數';
     $('keyExtraText').textContent = '遲咗少交嘅年數';
@@ -1052,8 +1138,11 @@
     const pm = payerMap(r, inp);
     const fName = (chartFocus(r) || {}).name || '儲蓄';
     const differs = inp.inflation > 0 || inp.levy > 0 || state.m !== 'annual';
+    const plans = allPlans();
+    const multi = plans.length > 1;
     const head = ['年齡', '邊個交',
-      ...(differs ? ['保費表（年繳）', '全年實付'] : ['全年保費']),
+      ...(multi ? plans.map((pl) => esc(planName(pl))) : []),
+      ...(differs ? ['保費表（年繳）', multi ? '合共全年實付' : '全年實付'] : [multi ? '合共全年保費' : '全年保費']),
       ...(state.m !== 'annual' ? [`${mode.label}每期`] : []), '比上年升幅'];
     const body = r.rows.map((x, i) => {
       const prev = r.rows[i - 1];
@@ -1061,6 +1150,7 @@
       const chCls = ch == null ? '' : ch > 0.0005 ? 'up' : ch < -0.0005 ? 'down' : '';
       const who = pm[x.age];
       const cells = [`${x.age}歲`, who === 'save' ? `由${fName}支付` : who === 'target' ? '目標用儲蓄交' : who === 'out' ? '儲蓄用完，自己交' : '自己交',
+        ...(multi ? x.parts.map((v) => money(v)) : []),
         ...(differs ? [money(x.table), money(x.payable)] : [money(x.payable)]),
         ...(state.m !== 'annual' ? [money(x.perInstalment)] : [])];
       return `<tr class="${who === 'save' || who === 'target' ? 'cover' : 'prep'}">${cells.map((c) => `<td>${c}</td>`).join('')}<td class="${chCls}">${ch == null ? '—' : (ch > 0 ? '+' : '') + pct(ch)}</td></tr>`;
@@ -1076,9 +1166,8 @@
   }
 
   function renderAssumptions(inp, r) {
-    const p = product();
     const list = [
-      `保費表：${p.name}（${p.en}），${dateZh(p.effective)}生效${p.supplementary ? '（只計附加保障保費）' : ''}。年齡以最接近生日年齡計。`,
+      `保費表：${allPlans().map((pl) => { const p = DATA.products[pl.productId]; return `${p.name}（${p.en}）${dateZh(p.effective)}生效${p.supplementary ? '，只計附加保障保費' : ''}`; }).join('；')}。${allPlans().length > 1 ? '幾份計劃嘅保費逐年加埋計算。' : ''}年齡以最接近生日年齡計。`,
       inp.inflation > 0 ? `保費表每年額外加價假設 ${pct(inp.inflation)}（醫療通脹），喺年齡升幅之上，由現時年齡起每年複合計算。` : '未計保費表額外加價：只反映現行保費表隨年齡上升。',
       `繳費方式：${modeInfo().label}${state.m !== 'annual' ? `（每期 = 年繳保費 × ${modeInfo().factor}，全年等於年繳 × ${(modeInfo().factor * modeInfo().periods).toFixed(2)}）` : ''}${inp.levy ? '；已加 0.1% 保費徵費（未計徵費上限）' : '；未計保費徵費'}。`,
       r.bank.feasible ? `銀行儲蓄：年利率 ${pct(inp.bankRate)}，由 ${inp.currentAge} 歲儲到 ${inp.startAge - 1} 歲，${inp.startAge} 歲起每年提取。` : '銀行儲蓄：即刻要用儲蓄交保費，冇時間預先儲錢，唔適用。',

@@ -53,14 +53,19 @@
 
       <section class="group">
         <h2 class="group__title">計劃</h2>
-        <label class="field">
-          <span class="label">產品</span>
-          <select id="product"></select>
-        </label>
-        <label class="field">
-          <span class="label">計劃選項</span>
-          <select id="option"></select>
-        </label>
+        <div class="plan-box">
+          <div class="plan-box__head"><span id="planNo1">計劃</span></div>
+          <label class="field">
+            <span class="label">產品</span>
+            <select id="product"></select>
+          </label>
+          <label class="field">
+            <span class="label">計劃選項</span>
+            <select id="option"></select>
+          </label>
+        </div>
+        <div id="extraPlans"></div>
+        <button type="button" class="btn-add" id="addPlan">＋ 加多一份計劃</button>
         <p class="hint" id="productHint"></p>
       </section>
 

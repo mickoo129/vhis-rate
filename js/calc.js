@@ -14,7 +14,22 @@
   };
   const TAX_CAP = 8000; // 每名受保人每年可扣稅保費上限
 
+  // 同一個人可以有幾份計劃：第一份 + extraPlans
+  function planList(sel) {
+    return [{ productId: sel.productId, optionId: sel.optionId }, ...(sel.extraPlans || [])];
+  }
+
   function tablePremium(data, sel, age) {
+    if (sel.extraPlans && sel.extraPlans.length) {
+      const parts = planList(sel).map((pl) => onePremium(data, { ...pl, gender: sel.gender }, age).main);
+      const total = parts.reduce((a, b) => a + b, 0);
+      return { main: parts[0], total, parts };
+    }
+    const one = onePremium(data, sel, age);
+    return { ...one, parts: [one.main] };
+  }
+
+  function onePremium(data, sel, age) {
     const p = data.products[sel.productId];
     if (!p) throw new Error(`搵唔到計劃：${sel.productId}`);
     const g = p.gendered ? sel.gender : 'U';
@@ -31,7 +46,7 @@
   }
 
   function maxAgeFor(data, sel) {
-    return data.products[sel.productId].maxAge;
+    return Math.max(...planList(sel).map((pl) => data.products[pl.productId].maxAge));
   }
 
   /*
@@ -49,7 +64,9 @@
       const adjusted = t.total * infl; // 年繳，計入保費調整
       const premium = adjusted * yearlyFactor; // 全年實付（未計徵費）
       const levy = premium * (inp.levy || 0);
+      const k = infl * yearlyFactor * (1 + (inp.levy || 0));
       rows.push({
+        parts: t.parts.map((v) => v * k), // 每份計劃嘅全年實付
         age,
         table: t.total,
         main: t.main,
@@ -313,19 +330,21 @@
 
   function validateInputs(data, inp) {
     const errs = [];
-    const p = data.products[inp.productId];
-    if (!p) return ['請揀計劃'];
-    const maxAge = p.maxAge;
+    const list = planList(inp);
+    if (list.some((pl) => !data.products[pl.productId])) return ['請揀計劃'];
+    const ps = list.map((pl) => data.products[pl.productId]);
+    const top = ps.reduce((a, b) => (b.maxAge > a.maxAge ? b : a));
+    const maxAge = top.maxAge;
     if (!(inp.currentAge >= 0)) errs.push('請輸入現時年齡');
-    if (inp.currentAge > maxAge) errs.push(`${p.short}最高只計到${maxAge}歲`);
+    if (inp.currentAge > maxAge) errs.push(`${top.short}最高只計到${maxAge}歲`);
     if (inp.startAge < inp.currentAge) errs.push('開始年齡唔可以細過現時年齡');
     if (inp.endAge < inp.startAge) errs.push('結束年齡唔可以細過開始年齡');
-    if (inp.endAge > maxAge) errs.push(`${p.short}最高只計到${maxAge}歲（${p.maxAgeNote}）`);
-    if (p.gendered && (!inp.gender || inp.gender === 'U')) errs.push('請揀性別');
+    if (inp.endAge > maxAge) errs.push(`最高只計到${maxAge}歲（${top.maxAgeNote}）`);
+    if (ps.some((p) => p.gendered) && (!inp.gender || inp.gender === 'U')) errs.push('請揀性別');
     return errs;
   }
 
-  const api = { PAYMENT_MODES, TAX_CAP, tablePremium, maxAgeFor, premiumSchedule, solveFunding, bankPlan, savingsPlan, simulateFixed, bankFixed, planFixed, summarize, validateInputs };
+  const api = { PAYMENT_MODES, TAX_CAP, planList, tablePremium, maxAgeFor, premiumSchedule, solveFunding, bankPlan, savingsPlan, simulateFixed, bankFixed, planFixed, summarize, validateInputs };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VHISCalc = api;
 })(typeof window !== 'undefined' ? window : globalThis);
