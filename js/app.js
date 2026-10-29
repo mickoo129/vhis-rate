@@ -270,11 +270,15 @@
     }));
   }
 
+  // 分享呢個方案（MKPA 標準）：手機彈分享選單，電腦複製連結。網址 # 後面已經有全部設定，冇客人姓名。
   async function copyLink() {
     const url = location.href;
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ title: document.title, url }); return; } catch (e) { return; }
+    }
     try {
       await navigator.clipboard.writeText(url);
-      toast('已複製連結，貼俾客戶就睇到同一個方案');
+      toast('已複製連結，客人撳開會見到同一個方案');
     } catch (e) {
       window.prompt('複製呢條連結：', url);
     }
