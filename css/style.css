@@ -40,13 +40,12 @@ small { font-weight: 400; color: var(--ink-3); }
 .kpi__v, .total-hero__main b { font-family: var(--num); }
 
 /* 頂部 */
-.topbar { background: var(--brand-2); color: #fff; }
-.topbar__inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 18px; padding-bottom: 18px; flex-wrap: wrap; }
-.topbar h1 { font-size: 22px; font-weight: 900; letter-spacing: .02em; }
-.topbar__brand { display: flex; align-items: center; gap: 12px; }
-.topbar__brand .mk-logo { width: 40px; height: 40px; }
-.eyebrow { font-size: 12px; letter-spacing: .12em; opacity: .75; margin-bottom: 2px; }
-.topbar__actions { display: flex; gap: 8px; }
+.topbar { background: var(--brand-2); color: #fff; position: sticky; top: 0; z-index: 40; }
+.topbar__inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding-top: 8px; padding-bottom: 8px; }
+.topbar h1 { font-size: 18px; font-weight: 900; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar__brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.topbar__brand .mk-logo { width: 32px; height: 32px; }
+.topbar__actions { display: flex; gap: 8px; flex: none; }
 
 /* 按鈕 */
 .btn { font: inherit; font-size: 14px; font-weight: 500; border-radius: 10px; padding: 8px 14px; cursor: pointer; border: 1px solid transparent; transition: background .15s, border-color .15s; }
@@ -60,7 +59,7 @@ small { font-weight: 400; color: var(--ink-3); }
 
 /* 版面 */
 .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding-top: 20px; padding-bottom: 32px; align-items: start; }
-.panel { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px 18px 18px; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.panel { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px 18px 18px; position: sticky; top: 68px; max-height: calc(100vh - 80px); overflow-y: auto; }
 .results { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 #resultBody { display: flex; flex-direction: column; gap: 16px; }
 
@@ -218,7 +217,7 @@ details .table-wrap { max-height: 520px; overflow-y: auto; margin-top: 12px; }
 }
 @media (max-width: 560px) {
   body { font-size: 14px; }
-  .topbar h1 { font-size: 19px; }
+  .topbar h1 { font-size: 17px; }
   .compare { grid-template-columns: 1fr; }
   .card { padding: 16px 14px; }
   .chart--tall { height: 260px; }
@@ -310,7 +309,7 @@ section[id^="sec"] { scroll-margin-top: 12px; }
 
 .jump { display: none; }
 @media (max-width: 900px) {
-  .jump { display: block; position: sticky; top: 8px; z-index: 5; margin: 10px 0 0; text-align: center; background: var(--brand-fill); color: #fff; font-weight: 700; text-decoration: none; font-weight: 700; padding: 9px; border-radius: 10px; box-shadow: var(--shadow); }
+  .jump { display: block; position: sticky; top: 64px; z-index: 5; margin: 10px 0 0; text-align: center; background: var(--brand-fill); color: #fff; font-weight: 700; text-decoration: none; font-weight: 700; padding: 9px; border-radius: 10px; box-shadow: var(--shadow); }
 }
 @media (max-width: 560px) {
   .rung { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who num" "bar bar" "detail detail"; row-gap: 6px; }
@@ -511,7 +510,8 @@ details.more[open] summary::before { content: "▾ "; }
 .mk-print-head{display:none}
 @media print{
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .mk-no-print,.mk-print-btn,.mk-ecard-btn{display:none!important}
+  .mk-no-print,.mk-print-btn,.mk-share-btn,.mk-toast,.mk-ecard-btn{display:none!important}
+  .mk-header{position:static}
   .mk-ecard{break-inside:avoid;padding:10px 14px;margin-top:14px}
   .mk-ecard-qr{display:block}
   .mk-ecard-qr svg{width:22mm;height:22mm;display:block}
@@ -519,6 +519,20 @@ details.more[open] summary::before { content: "▾ "; }
   .mk-print-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:2px solid var(--mk-brand);padding:0 0 5px;margin:0 0 10px;font-family:var(--mk-sans);color:var(--mk-muted);font-size:9pt}
   .mk-print-head b{color:var(--mk-deep);font-size:11pt}
 }
+/* 頁頭：統一鎖住喺頂；第一行 icon + 工具名 + 按鈕 */
+.mk-header{position:sticky;top:0;z-index:50}
+.mk-bar{display:flex;align-items:center;gap:12px;min-height:56px}
+.mk-title{display:flex;align-items:center;gap:10px;min-width:0;font-family:var(--mk-sans);font-weight:900;font-size:17px;white-space:nowrap}
+.mk-title span{overflow:hidden;text-overflow:ellipsis}
+.mk-actions{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+/* 分享呢個方案（同列印按鈕一樣樣式） */
+.mk-share-btn{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--mk-brand);background:var(--mk-surface);color:var(--mk-brand-ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.mk-share-btn:hover{background:var(--mk-brand-soft)}
+.mk-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:999;background:var(--mk-ink);color:#fff;font:600 14px/1.4 var(--mk-sans);padding:10px 16px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.18);max-width:calc(100vw - 32px)}
+.mk-share-btn>.mk-long{margin-left:-6px} /* 抵銷 gap，令「分享呢個方案」連埋 */
+.mk-print-btn>.mk-long{margin-left:-2px} /* 「列印 / 存 PDF」保留一個空格 */
+/* 手機：按鈕字縮短（「分享」「列印」） */
+@media (max-width:480px){.mk-long{display:none}.mk-print-btn,.mk-share-btn{padding:0 10px}}
 /* ===== MKPA 統一標準 完 ===== */
 
 
