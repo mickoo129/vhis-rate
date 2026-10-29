@@ -7,7 +7,7 @@
 
   const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 60, e: 90, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000, x: '' };
   // 分類顏色跟 MKPA 色盤：銀行儲蓄 1 藍、儲蓄計劃 6 金、自己交 7 灰藍；保費紅色係「要付錢」，保留
-  const COLORS = { premium: '#b3261e', prep: '#5B7086', table: '#1D2B2A', bank: '#2A78D6', plan: '#C99A2E' };
+  const COLORS = { premium: '#b3261e', prep: '#6E7378', table: '#1D2B2A', bank: '#1E6FE6', plan: '#D39A12' };
 
   // ---------- 格式 ----------
   const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -722,7 +722,7 @@
   }
 
   // 幾份計劃：各佔總保費幾多
-  const MIX_COLORS = ['#2A78D6', '#6250D6', '#EB6834']; // MKPA 分類色盤 1–3
+  const MIX_COLORS = ['#1E6FE6', '#EA6A23', '#9B2FC0']; // MKPA 分類色盤 1–3
   function mixHtml(inp, r) {
     const plans = allPlans();
     if (plans.length < 2) return '';
