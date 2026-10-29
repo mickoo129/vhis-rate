@@ -12,11 +12,11 @@
   --brand-soft: #E6F6EE;
   --premium: #C62828;
   --premium-soft: #FDECEC;
-  --prep: #9aa3b2;
-  --bank: #2459c9;
-  --bank-soft: #e8eefb;
-  --plan: #c26a06;
-  --plan-soft: #fdf0de;
+  --prep: #5B7086;
+  --bank: #2873CE;
+  --bank-soft: #E7EFF9;
+  --plan: #8F6D21;
+  --plan-soft: #F9F3E7;
   --radius: 14px;
   --shadow: 0 1px 2px rgba(29, 43, 42, .06), 0 4px 16px rgba(29, 43, 42, .05);
   --font: "Noto Sans HK", "PingFang HK", "Microsoft JhengHei", system-ui, sans-serif;
@@ -93,7 +93,7 @@ select:focus, input:focus-visible, button:focus-visible { outline: 2px solid var
 
 input[type="range"] { width: 100%; accent-color: var(--brand); margin: 4px 0 0; height: 24px; }
 #bankRate { accent-color: var(--bank); }
-#planRate, #planYears { accent-color: var(--plan); }
+#planRate, #planYears { accent-color: var(--mk-cat-6); }
 .pill { font-size: 13px; font-weight: 700; padding: 1px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); min-width: 52px; text-align: center; }
 .pill--bank { background: var(--bank-soft); color: var(--bank); }
 .pill--plan { background: var(--plan-soft); color: var(--plan); }
@@ -459,7 +459,7 @@ details.more[open] summary::before { content: "▾ "; }
 .combo__eq b { color: var(--premium); }
 .split { grid-column: 1 / -1; margin-top: 4px; }
 .split__bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: #fff; }
-.split__seg--before { background: #9aa3b2; }
+.split__seg--before { background: #5B7086; }
 .split__seg--save { background: var(--premium); }
 .split__seg--out { background: #4b5563; }
 .split__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -468,7 +468,7 @@ details.more[open] summary::before { content: "▾ "; }
 .split__item b { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .split__item small { grid-column: 2 / -1; color: var(--ink-3); font-size: 11.5px; }
 .split__dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-.split__dot--before { background: #9aa3b2; }
+.split__dot--before { background: #5B7086; }
 .split__dot--save { background: var(--premium); }
 .split__dot--out { background: #4b5563; }
 @media print {
@@ -492,7 +492,27 @@ details.more[open] summary::before { content: "▾ "; }
   --mk-num:"Barlow","Noto Sans HK",system-ui,sans-serif;
   --mk-max:1320px;                        /* 內容最闊 */
   --mk-gutter:clamp(16px,3vw,32px);       /* 兩邊留白：手機 16px → 桌面 32px */
+  /* 分類色盤：主色（圓點、色條、圖表）／ -ink 白底寫字 ／ -soft 淺底 */
+  --mk-cat-1:#2A78D6; --mk-cat-1-ink:#2873CE; --mk-cat-1-soft:#E7EFF9;   /* 醫療／住院 */
+  --mk-cat-2:#6250D6; --mk-cat-2-ink:#6250D6; --mk-cat-2-soft:#E9E7F9;   /* 危疾 */
+  --mk-cat-3:#EB6834; --mk-cat-3-ink:#C94714; --mk-cat-3-soft:#F9ECE7;   /* 人壽／身故 */
+  --mk-cat-4:#0E9AA7; --mk-cat-4-ink:#0C808B; --mk-cat-4-soft:#E7F7F9;   /* 意外 */
+  --mk-cat-5:#C2417A; --mk-cat-5-ink:#C2417A; --mk-cat-5-soft:#F8E8EF;   /* 癌症 */
+  --mk-cat-6:#C99A2E; --mk-cat-6-ink:#8F6D21; --mk-cat-6-soft:#F9F3E7;   /* 儲蓄／退休／強積金 */
+  --mk-cat-7:#5B7086; --mk-cat-7-ink:#5B7086; --mk-cat-7-soft:#EDF0F3;   /* 中性／其他 */
+  --mk-cat-8:#8A5A44; --mk-cat-8-ink:#8A5A44; --mk-cat-8-soft:#F5EEEB;   /* 第8色 */
 }
+/* 分類 class：加喺元素上就用 var(--c) var(--c-ink) var(--c-soft) */
+.mk-cat-1{--c:var(--mk-cat-1);--c-ink:var(--mk-cat-1-ink);--c-soft:var(--mk-cat-1-soft)}
+.mk-cat-2{--c:var(--mk-cat-2);--c-ink:var(--mk-cat-2-ink);--c-soft:var(--mk-cat-2-soft)}
+.mk-cat-3{--c:var(--mk-cat-3);--c-ink:var(--mk-cat-3-ink);--c-soft:var(--mk-cat-3-soft)}
+.mk-cat-4{--c:var(--mk-cat-4);--c-ink:var(--mk-cat-4-ink);--c-soft:var(--mk-cat-4-soft)}
+.mk-cat-5{--c:var(--mk-cat-5);--c-ink:var(--mk-cat-5-ink);--c-soft:var(--mk-cat-5-soft)}
+.mk-cat-6{--c:var(--mk-cat-6);--c-ink:var(--mk-cat-6-ink);--c-soft:var(--mk-cat-6-soft)}
+.mk-cat-7{--c:var(--mk-cat-7);--c-ink:var(--mk-cat-7-ink);--c-soft:var(--mk-cat-7-soft)}
+.mk-cat-8{--c:var(--mk-cat-8);--c-ink:var(--mk-cat-8-ink);--c-soft:var(--mk-cat-8-soft)}
+.mk-chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:var(--c-soft);color:var(--c-ink);font-size:13px;font-weight:700}
+.mk-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c)}
 /* 版面外框：工具可以用自己嘅 class，但數值要一樣 */
 .mk-wrap{width:100%;max-width:calc(var(--mk-max) + 2 * var(--mk-gutter));margin:0 auto;padding-left:var(--mk-gutter);padding-right:var(--mk-gutter);box-sizing:border-box}
 /* 標題旁 icon */
@@ -561,9 +581,9 @@ details.more[open] summary::before { content: "▾ "; }
 .story-note--delay { background: var(--premium-soft); } .story-note--delay .story-note__n { color: var(--premium); }
 .story-note b.good, .kpi__s .good { color: var(--brand); }
 .story-note b.bad, .kpi__s .bad { color: var(--premium); }
-.kpi--bank { border-top-color: var(--bank); }
+.kpi--bank { border-top-color: var(--mk-cat-1); }
 .kpi--bank .kpi__q .num { background: var(--bank-soft); color: var(--bank); }
-.kpi--plan { border-top-color: var(--plan); }
+.kpi--plan { border-top-color: var(--mk-cat-6); }
 .kpi--plan .kpi__q .num { background: var(--plan-soft); color: var(--plan); }
 @media (max-width: 560px) {
   .story__btn { font-size: 13px; padding: 6px; flex-direction: column; gap: 0; }
@@ -588,8 +608,8 @@ details.more[open] summary::before { content: "▾ "; }
 /* v6：撳先顯示 */
 .kpi--locked .kpi__v { color: var(--ink-3); }
 .kpi__reveal { display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; color: var(--brand); border: 1.5px dashed var(--brand-line, #B4E2C8); background: var(--brand-soft); border-radius: 8px; padding: 4px 12px; }
-.kpi--bank.kpi--locked .kpi__reveal { color: var(--bank); border-color: rgba(36,89,201,.35); background: var(--bank-soft); }
-.kpi--plan.kpi--locked .kpi__reveal { color: var(--plan); border-color: rgba(194,106,6,.35); background: var(--plan-soft); }
+.kpi--bank.kpi--locked .kpi__reveal { color: var(--bank); border-color: rgba(42,120,214,.35); background: var(--bank-soft); }
+.kpi--plan.kpi--locked .kpi__reveal { color: var(--plan); border-color: rgba(201,154,46,.35); background: var(--plan-soft); }
 .kpi--alert.kpi--locked .kpi__reveal { color: var(--premium); border-color: rgba(198,40,40,.3); background: var(--premium-soft); }
 .kpi--locked { cursor: pointer; }
 .kd { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
