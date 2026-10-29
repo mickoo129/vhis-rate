@@ -6,7 +6,8 @@
   const $ = (id) => document.getElementById(id);
 
   const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 60, e: 90, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000, x: '' };
-  const COLORS = { premium: '#b3261e', prep: '#9aa3b2', table: '#1D2B2A', bank: '#2459c9', plan: '#c26a06' };
+  // 分類顏色跟 MKPA 色盤：銀行儲蓄 1 藍、儲蓄計劃 6 金、自己交 7 灰藍；保費紅色係「要付錢」，保留
+  const COLORS = { premium: '#b3261e', prep: '#5B7086', table: '#1D2B2A', bank: '#2A78D6', plan: '#C99A2E' };
 
   // ---------- 格式 ----------
   const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -645,7 +646,7 @@
   const stripeCache = {};
   function stripes(kind) {
     if (stripeCache[kind]) return stripeCache[kind];
-    const rgb = kind === 'bank' ? '36,89,201' : '194,106,6';
+    const rgb = kind === 'bank' ? '42,120,214' : '201,154,46';
     const c = document.createElement('canvas');
     c.width = c.height = 8;
     const x = c.getContext('2d');
@@ -721,7 +722,7 @@
   }
 
   // 幾份計劃：各佔總保費幾多
-  const MIX_COLORS = ['#0E5E57', '#00A758', '#7FB8A8'];
+  const MIX_COLORS = ['#2A78D6', '#6250D6', '#EB6834']; // MKPA 分類色盤 1–3
   function mixHtml(inp, r) {
     const plans = allPlans();
     if (plans.length < 2) return '';
@@ -778,8 +779,8 @@
     const delayS = (inp.calc === 'fixed' ? r.fixed : r.scenarios)[1];
     const canBank = !!(dep.bank && dep.bank.feasible);
     const canDelay = !!(delayS && (delayS.bank.feasible || delayS.plan.feasible));
-    if (story.bank && canBank) depBar(dep.bank, '銀行', inp.bankRate, 'rgba(36,89,201,.75)');
-    if (story.plan) depBar(dep.plan, '儲蓄計劃', inp.planRate, 'rgba(194,106,6,.8)');
+    if (story.bank && canBank) depBar(dep.bank, '銀行', inp.bankRate, 'rgba(42,120,214,.75)');
+    if (story.plan) depBar(dep.plan, '儲蓄計劃', inp.planRate, 'rgba(201,154,46,.8)');
     if (story.delay && canDelay) {
       for (const k of delayKinds(delayS)) {
         const d = delayS[k];
@@ -954,8 +955,8 @@
       data: {
         labels: ages.map((a) => `${a}歲`),
         datasets: [
-          ...(r.bank ? [{ label: '銀行儲蓄餘額', data: series(r.bank), borderColor: COLORS.bank, backgroundColor: 'rgba(36,89,201,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
-          ...(r.plan ? [{ label: '儲蓄計劃餘額', data: series(r.plan), borderColor: COLORS.plan, backgroundColor: 'rgba(194,106,6,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
+          ...(r.bank ? [{ label: '銀行儲蓄餘額', data: series(r.bank), borderColor: COLORS.bank, backgroundColor: 'rgba(42,120,214,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
+          ...(r.plan ? [{ label: '儲蓄計劃餘額', data: series(r.plan), borderColor: COLORS.plan, backgroundColor: 'rgba(201,154,46,.10)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
         ],
       },
       options: baseOptions(),
