@@ -1188,7 +1188,17 @@
   }
 
   // ---------- 開始 ----------
+  // 手機「睇結果」浮動掣：結果區喺畫面入面就收埋
+  function watchJump() {
+    const jump = document.querySelector('.jump');
+    if (!jump || !('IntersectionObserver' in window)) return;
+    new IntersectionObserver((es) => {
+      jump.classList.toggle('is-hidden', es.some((e) => e.isIntersecting));
+    }, { rootMargin: '0px 0px -40% 0px' }).observe($('results'));
+  }
+
   function init() {
+    watchJump();
     $('dataInfo').textContent = `${Object.values(DATA.products).map((p) => `${p.short.split('（')[0]} ${dateZh(p.effective)}`).join('、')} 生效版本`;
     fillProducts();
     bind();

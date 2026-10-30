@@ -281,7 +281,7 @@ a.kpi:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(22,33,58,.
 .card__head--wrap { flex-wrap: wrap; }
 .seg--tabs { min-width: 220px; }
 .seg button[disabled] { opacity: .4; cursor: not-allowed; }
-section[id^="sec"] { scroll-margin-top: 12px; }
+section[id^="sec"] { scroll-margin-top: 72px; }
 
 .delay-lead { font-size: 18px; font-weight: 500; line-height: 1.5; margin: 4px 0 16px; }
 .delay-lead b { color: var(--premium); font-weight: 900; }
@@ -309,7 +309,9 @@ section[id^="sec"] { scroll-margin-top: 12px; }
 
 .jump { display: none; }
 @media (max-width: 900px) {
-  .jump { display: block; position: sticky; top: 64px; z-index: 5; margin: 10px 0 0; text-align: center; background: var(--brand-fill); color: #fff; font-weight: 700; text-decoration: none; font-weight: 700; padding: 9px; border-radius: 10px; box-shadow: var(--shadow); }
+  /* 手機：右下角浮動掣，唔佔輸入區位置；碌到結果區就收埋 */
+  .jump { display: inline-flex; align-items: center; gap: 4px; position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--brand-fill); color: #fff; font-weight: 700; text-decoration: none; font-size: 15px; padding: 10px 18px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0, 0, 0, .22); transition: opacity .2s, transform .2s; }
+  .jump.is-hidden { opacity: 0; transform: translateY(12px); pointer-events: none; }
 }
 @media (max-width: 560px) {
   .rung { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who num" "bar bar" "detail detail"; row-gap: 6px; }
@@ -652,3 +654,4 @@ details.more[open] summary::before { content: "▾ "; }
   .story-note { break-inside: avoid; }
   #secSave .card__head { break-after: avoid; }
 }
+#results { scroll-margin-top: 72px; }
