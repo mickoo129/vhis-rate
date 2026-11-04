@@ -368,13 +368,16 @@
     renderAssumptions(inp, r);
   }
 
+  // 遲儲嘅代價喺保守情景下：每月要由幾多加到幾多
+  const consUp = (c, i) => { const a = c.scen[0], b = c.scen[i]; return a && b && a.feasible && b.feasible ? { a, b, up: b.monthly - a.monthly } : null; };
   // 保守情景（要儲幾多模式）：同樣每月供款，回報減 1.5% 夠交到幾歲；想交足要儲幾多
   function consCheck(inp, r) {
     if (!consOn() || inp.calc === 'fixed' || !r.plan.feasible) return null;
     const lo = { ...inp, planRate: consRate() / 100 };
     const fx = C.summarize(DATA, { ...lo, calc: 'fixed', monthlySaving: r.plan.monthly }).fixed[0].plan;
-    const need = C.summarize(DATA, lo).plan;
-    return { rate: consRate() / 100, fx, need };
+    const lowS = C.summarize(DATA, lo);
+    // scen：保守情景下，每個開始年齡要每月儲幾多先交足（俾「遲儲嘅代價」用）
+    return { rate: consRate() / 100, fx, need: lowS.plan, scen: lowS.scenarios.map((s) => s.plan) };
   }
   const consReach = (inp, c) => `同樣每月 ${money(c.fx.monthly)} 夠交到 <b class="${c.fx.reachesTarget ? 'good' : 'bad'}">${reachText(c.fx, maxAgeAll())}</b>（目標 ${inp.endAge} 歲）`;
 
@@ -474,9 +477,11 @@
         : `$${nf.format(Math.round(base.monthly))} → <b>$${nf.format(Math.round(d.monthly))}</b><small> / 月</small>`;
       return `<div class="kd__row kd__row--${k}"><span>${nm}</span><span class="kd__v">${v}</span></div>`;
     }).join('')}</div>`;
-    $('kDelaySub').innerHTML = fixed
+    const cu = !fixed && r.cons && ks.includes('plan') ? consUp(r.cons, 1) : null;
+    $('kDelaySub').innerHTML = (fixed
       ? `${s5.age} 歲先開始儲，同樣每月 ${money(inp.monthlySaving)}，可以交到嘅年齡`
-      : `${s5.age} 歲先開始儲，每月要儲嘅錢`;
+      : `${s5.age} 歲先開始儲，每月要儲嘅錢`)
+      + (cu ? `<br><span class="bad">保守情景 ${pct(r.cons.rate)}：儲蓄計劃 ${money(cu.a.monthly)} → ${money(cu.b.monthly)}</span>` : '');
   }
 
   // 未撳嘅步驟唔顯示數字
@@ -746,7 +751,9 @@
           return `${nm}：同樣每月 ${money(d.monthly)}，由交到 ${reachText(base, maxAge)} 變成只夠交到 <b>${reachText(d, maxAge)}</b>${lost > 0 ? `（<b class="bad">少交 ${lost} 年</b>）` : ''}`;
         }
         const up = d.monthly - base.monthly;
-        return `${nm}：每月由 ${money(base.monthly)} 變 <b>${money(d.monthly)}</b>（<b class="bad">多 ${money(up)}，+${pct(up / base.monthly, 0)}</b>）`;
+        const cu = k === 'plan' && r.cons ? consUp(r.cons, 1) : null;
+        return `${nm}：每月由 ${money(base.monthly)} 變 <b>${money(d.monthly)}</b>（<b class="bad">多 ${money(up)}，+${pct(up / base.monthly, 0)}</b>）`
+          + (cu ? `<br>　保守情景 ${pct(r.cons.rate)}：想交足到 ${inp.endAge} 歲，每月由 ${money(cu.a.monthly)} 變 <b>${money(cu.b.monthly)}</b>（<b class="bad">多 ${money(cu.up)}，+${pct(cu.up / cu.a.monthly, 0)}</b>）` : '');
       });
       notes.push(['delay', '③', `遲 ${delayS.delay} 年（${delayS.age} 歲）先開始儲：<br>${lines.join('<br>')}`]);
     }
@@ -1127,7 +1134,10 @@
     const lead = s5
       ? `${s5.title}先開始儲，每月要由 <b class="calm">${money(base.monthly)}</b> 加到 <b>${money(s5.res.monthly)}</b>（+${pct(s5.up / base.monthly, 0)}）`
       : `${inp.startAge} 歲就要開始用儲蓄交保費，冇時間再遲；如果唔儲，就要好似下面咁全部自己交`;
-    $('delayLead').innerHTML = `<span class="delay-lead__tag">${esc(f.label)}</span>${lead}${f.note ? `<span class="hint">（${f.note}）</span>` : ''}`;
+    const showCons = k === 'plan' && r.cons;
+    const cu5 = showCons && s5 ? consUp(r.cons, 1) : null;
+    const consLead = cu5 ? `<span class="delay-cons">保守情景（回報 ${pct(r.cons.rate)}）想交足到 ${inp.endAge} 歲：每月要由 <b>${money(cu5.a.monthly)}</b> 加到 <b>${money(cu5.b.monthly)}</b>（+${pct(cu5.up / cu5.a.monthly, 0)}）</span>` : '';
+    $('delayLead').innerHTML = `<span class="delay-lead__tag">${esc(f.label)}</span>${lead}${f.note ? `<span class="hint">（${f.note}）</span>` : ''}${consLead}`;
 
     $('delayLadder').innerHTML = rows.map((x, i) => {
       const baseW = (base.monthly / max) * 100;
@@ -1135,11 +1145,13 @@
       const detail = `供 ${x.res.years} 年（${x.res.depositFrom}–${x.res.depositTo} 歲）· 總共拎出嚟 ${money(x.res.totalOutlay)}` +
         (i > 0 && x.extraTotal > 1000 ? `（多 ${money(x.extraTotal)}）` : '') +
         (x.res.outOfPocket > 0.5 ? ` · 另加自己交保費 ${money(x.res.outOfPocket)}` : '');
+      const cs = showCons ? r.cons.scen[r.scenarios.findIndex((s) => s[k] === x.res)] : null;
+      const consTxt = cs && cs.feasible ? `<span class="rung__cons">保守情景 ${pct(r.cons.rate)}：每月要儲 ${money(cs.monthly)}${i > 0 ? `（多 ${money(cs.monthly - r.cons.scen[0].monthly)}）` : ''}</span>` : '';
       return `<div class="rung${i === 0 ? ' rung--now' : ''}">
         <div class="rung__who"><b>${x.title}</b><span>${x.age}</span></div>
         <div class="rung__bar"><span class="bar bar--${k}" style="width:${baseW}%"></span><span class="bar bar--extra" style="width:${extraW}%"></span></div>
         <div class="rung__num"><b>${money(x.res.monthly)}<small> / 月</small></b><span>${i === 0 ? '每月要儲' : `每月多 ${money(x.up)}（+${pct(x.up / base.monthly, 0)}）`}</span></div>
-        <div class="rung__detail">${detail}</div>
+        <div class="rung__detail">${detail}${consTxt}</div>
       </div>`;
     }).join('');
 
