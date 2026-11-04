@@ -167,9 +167,11 @@
         + `<button type="button" role="radio" data-value="1" aria-checked="${consOn()}" ${canCons ? '' : 'disabled title="假設回報已經係 0%"'}>保守情景 ${pct(consRate() / 100)}（−${CONS_DROP}%）</button>`;
     });
     $('consHint').hidden = !consOn();
-    $('consHint').textContent = consOn() ? `保守情景開咗：而家所有儲蓄計劃數字按 ${pct(consRate() / 100)} 計（假設回報 ${pct(state.pr / 100)} 減 ${CONS_DROP}%）。` : '';
+    $('consHint').textContent = !consOn() ? '' : state.calc === 'fixed'
+      ? `保守情景開咗：儲蓄計劃按 ${pct(consRate() / 100)} 計（假設回報 ${pct(state.pr / 100)} 減 ${CONS_DROP}%），睇吓夠交到幾歲。`
+      : `保守情景開咗：每月供款照用 ${pct(state.pr / 100)} 計，另外睇吓回報減 ${CONS_DROP}%（${pct(consRate() / 100)}）時夠交到幾歲。`;
     // 進階設定收埋時都見到而家用緊嘅數
-    $('advSummary').textContent = `銀行 ${pct(state.br / 100)} · 儲蓄計劃 ${pct(planRateUsed() / 100)}${consOn() ? '（保守）' : ''}、供 ${state.py} 年 · 加價 ${pct(state.inf / 100)} · ${C.PAYMENT_MODES[state.m].label}`;
+    $('advSummary').textContent = `銀行 ${pct(state.br / 100)} · 儲蓄計劃 ${pct(state.pr / 100)}${consOn() ? `（保守 ${pct(consRate() / 100)}）` : ''}、供 ${state.py} 年 · 加價 ${pct(state.inf / 100)} · ${C.PAYMENT_MODES[state.m].label}`;
     $('planYearsOut').textContent = `${state.py} 年`;
     $('inflationOut').textContent = pct(state.inf / 100);
   }
@@ -326,7 +328,7 @@
       levy: state.levy ? 0.001 : 0,
       mode: state.m,
       bankRate: state.br / 100,
-      planRate: planRateUsed() / 100,
+      planRate: (state.calc === 'fixed' ? planRateUsed() : state.pr) / 100, // 要儲幾多：供款照假設回報計，保守情景另外睇夠交到幾歲
       planYears: state.py,
       taxRate: Number(state.tax),
       calc: state.calc,
@@ -353,6 +355,7 @@
       $('resultBody').hidden = true;
       return;
     }
+    r.cons = consCheck(inp, r);
     $('errors').hidden = true;
     $('resultBody').hidden = false;
     renderCombo(inp, r);
@@ -364,6 +367,16 @@
     renderDetail(inp, r);
     renderAssumptions(inp, r);
   }
+
+  // 保守情景（要儲幾多模式）：同樣每月供款，回報減 1.5% 夠交到幾歲；想交足要儲幾多
+  function consCheck(inp, r) {
+    if (!consOn() || inp.calc === 'fixed' || !r.plan.feasible) return null;
+    const lo = { ...inp, planRate: consRate() / 100 };
+    const fx = C.summarize(DATA, { ...lo, calc: 'fixed', monthlySaving: r.plan.monthly }).fixed[0].plan;
+    const need = C.summarize(DATA, lo).plan;
+    return { rate: consRate() / 100, fx, need };
+  }
+  const consReach = (inp, c) => `同樣每月 ${money(c.fx.monthly)} 夠交到 <b class="${c.fx.reachesTarget ? 'good' : 'bad'}">${reachText(c.fx, maxAgeAll())}</b>（目標 ${inp.endAge} 歲）`;
 
   // 年齡升幅 + 額外加價 = 合共
   function ageGrowth(r, inp) {
@@ -409,7 +422,7 @@
 
     const f = focus(r);
     $('kBankTag').textContent = pct(inp.bankRate);
-    $('kPlanTag').textContent = pct(inp.planRate) + (consOn() ? ' 保守' : '');
+    $('kPlanTag').textContent = pct(inp.planRate) + (consOn() && inp.calc === 'fixed' ? ' 保守' : '');
     $('kBankTitle').textContent = inp.calc === 'fixed' ? '銀行夠交到幾歲' : '銀行要點儲';
     $('kPlanTitle').textContent = inp.calc === 'fixed' ? '儲蓄計劃夠交到幾歲' : '儲蓄計劃要點儲';
     if (inp.calc === 'fixed') return renderKpisFixed(inp, r, f);
@@ -433,6 +446,7 @@
       if (Math.abs(dt) > 0.5) parts.push(`總共${dt > 0 ? '少' : '多'}拎 ${money(Math.abs(dt))}`);
       if (parts.length) s3.push(`<span class="${dt > 0 ? 'good' : 'bad'}">比銀行${parts.join('、')}</span>`);
     }
+    if (r.cons) s3.push(`<span class="${r.cons.fx.reachesTarget ? 'good' : 'bad'}">保守情景 ${pct(r.cons.rate)}：夠交到 ${reachText(r.cons.fx, maxAgeAll())}</span>`);
     $('kPlanSub').innerHTML = s3.join('<br>');
     renderDelayKpi(inp, r);
     gateKpis(inp, r);
@@ -552,8 +566,8 @@
       let who = 'self';
       if (x.age >= inp.startAge) {
         if (!f) who = 'target';
-        else if (inp.calc === 'fixed') {
-          const fx = f.fx;
+        else if (inp.calc === 'fixed' || (f.kind === 'plan' && r.cons)) {
+          const fx = inp.calc === 'fixed' ? f.fx : r.cons.fx;
           if (fx && fx.feasible && x.age >= fx.withdrawFrom && (fx.runOutAge == null || x.age < fx.runOutAge)) who = 'save';
           else if (fx && fx.feasible && fx.runOutAge != null && x.age >= fx.runOutAge) who = 'out';
         } else {
@@ -718,6 +732,7 @@
           if (parts.length) t += ` 比銀行<b class="${dt > 0 ? 'good' : 'bad'}">${parts.join('、')}</b>。`;
         }
       }
+      if (!fixed && r.cons) t += ` 保守情景（回報 ${pct(r.cons.rate)}）：${consReach(inp, r.cons)}。`;
       if (p.withdrawFrom > inp.startAge) t += ` 要供滿先可以提取，${inp.startAge}–${p.withdrawFrom - 1} 歲保費仍然自己交。`;
       notes.push(['plan', '②', t]);
     }
@@ -888,7 +903,7 @@
 
   function optCard(kind, res, inp, r, best, other) {
     const isBank = kind === 'bank';
-    const name = isBank ? `銀行儲蓄 · ${pct(inp.bankRate)}` : `儲蓄計劃 · ${consOn() ? "保守情景" : "假設"} ${pct(inp.planRate)}`;
+    const name = isBank ? `銀行儲蓄 · ${pct(inp.bankRate)}` : `儲蓄計劃 · 假設 ${pct(inp.planRate)}`;
     if (!res.feasible) {
       return `<div class="opt opt--na"><div class="opt__name"><span>${name}</span></div><div class="opt__big">唔適用</div><div class="opt__note">${isBank ? '開始年齡等於現時年齡，冇時間預先儲錢。可以將「由幾歲開始用儲蓄交保費」較遲啲睇下。' : esc(res.reason)}</div></div>`;
     }
@@ -916,7 +931,16 @@
     return `<div class="opt opt--${kind}${isBest ? ' opt--best' : ''}"><div class="opt__name"><span>${name}</span>${badge}</div>
       <div class="opt__big">${big}</div><div class="opt__alt">${alt}</div>${vs}
       <dl>${rows.map(([k, v, c]) => `<dt>${k}</dt><dd class="${c || ''}">${v}</dd>`).join('')}</dl>
-      <div class="opt__note">${note}</div></div>`;
+      ${!isBank && r.cons ? consBlock(inp, r.cons) : ''}<div class="opt__note">${note}</div></div>`;
+  }
+  function consBlock(inp, c) {
+    const fx = c.fx;
+    let t = `<b>保守情景（回報 ${pct(c.rate)}）</b>：${consReach(inp, c)}`;
+    if (!fx.reachesTarget) t += `，${fx.runOutAge} 歲起儲蓄唔夠，之後共 <b>${money(fx.shortfall)}</b> 要自己交`;
+    else if (fx.leftoverAtTarget > 0.5) t += `，${inp.endAge} 歲仲剩 ${money(fx.leftoverAtTarget)}`;
+    t += '。';
+    if (!fx.reachesTarget && c.need.feasible) t += `<br>想保守情景都交足到 ${inp.endAge} 歲：每月儲 <b>${money(c.need.monthly)}</b>（多 ${money(c.need.monthly - fx.monthly)}）。`;
+    return `<div class="opt__cons">${t}</div>`;
   }
 
   const shownKinds = () => ['bank', 'plan'].filter((k) => story[k]);
@@ -939,7 +963,7 @@
       `<div class="baseline">如果完全唔預先儲：${inp.startAge}–${inp.endAge} 歲要自己交 <b>${money(r.totalPayable)}</b>。${ok.length && saved > 0 ? `預先儲最多可以少拎 ${money(saved)}（${pct(saved / r.totalPayable)}）出嚟。` : ''}</div>`;
 
     drawTotals(inp, r);
-    drawBalance(inp, story.bank ? r.bank : null, story.plan ? r.plan : null);
+    drawBalance(inp, story.bank ? r.bank : null, story.plan ? (r.cons ? r.cons.fx : r.plan) : null, !!r.cons);
   }
 
   function drawTotals(inp, r) {
@@ -960,7 +984,7 @@
 
   }
 
-  function drawBalance(inp, bank, plan) {
+  function drawBalance(inp, bank, plan, cons = false) {
     const r = { bank, plan };
     const ages = [];
     for (let a = inp.currentAge; a <= inp.endAge; a++) ages.push(a);
@@ -975,7 +999,7 @@
         labels: ages.map((a) => `${a}歲`),
         datasets: [
           ...(r.bank ? [{ label: '銀行儲蓄餘額', data: series(r.bank), borderColor: COLORS.bank, backgroundColor: 'rgba(42,120,214,.08)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
-          ...(r.plan ? [{ label: '儲蓄計劃餘額', data: series(r.plan), borderColor: COLORS.plan, backgroundColor: 'rgba(201,154,46,.10)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
+          ...(r.plan ? [{ label: cons ? `儲蓄計劃餘額（保守情景 ${pct(consRate() / 100)}）` : '儲蓄計劃餘額', data: series(r.plan), borderColor: COLORS.plan, backgroundColor: 'rgba(201,154,46,.10)', fill: true, pointRadius: 0, borderWidth: 2, tension: 0.2 }] : []),
         ],
       },
       options: baseOptions(),
@@ -1195,7 +1219,7 @@
       inp.inflation > 0 ? `保費表每年額外加價假設 ${pct(inp.inflation)}（醫療通脹），喺年齡升幅之上，由現時年齡起每年複合計算。` : '未計保費表額外加價：只反映現行保費表隨年齡上升。',
       `繳費方式：${modeInfo().label}${state.m !== 'annual' ? `（每期 = 年繳保費 × ${modeInfo().factor}，全年等於年繳 × ${(modeInfo().factor * modeInfo().periods).toFixed(2)}）` : ''}${inp.levy ? '；已加 0.1% 保費徵費（未計徵費上限）' : '；未計保費徵費'}。`,
       r.bank.feasible ? `銀行儲蓄：年利率 ${pct(inp.bankRate)}，由 ${inp.currentAge} 歲儲到 ${inp.startAge - 1} 歲，${inp.startAge} 歲起每年提取。` : '銀行儲蓄：即刻要用儲蓄交保費，冇時間預先儲錢，唔適用。',
-      `儲蓄計劃：${consOn() ? `保守情景，回報按 ${pct(consRate() / 100)} 計（假設回報 ${pct(state.pr / 100)} 減 ${CONS_DROP}%）` : `假設年回報 ${pct(inp.planRate)}`}，供款 ${inp.planYears} 年，供款期後先開始提取；未供滿之前到期嘅保費要自己交。`,
+      `儲蓄計劃：${consOn() && inp.calc === 'fixed' ? `保守情景，回報按 ${pct(consRate() / 100)} 計（假設回報 ${pct(state.pr / 100)} 減 ${CONS_DROP}%）` : `假設年回報 ${pct(inp.planRate)}`}，供款 ${inp.planYears} 年，供款期後先開始提取；未供滿之前到期嘅保費要自己交。${r.cons ? `保守情景：供款不變，回報減 ${CONS_DROP}%（${pct(r.cons.rate)}）計算夠交到幾歲。` : ''}`,
       inp.calc === 'fixed'
         ? `每月儲定數：每月 ${money(inp.monthlySaving)}，每月月初供款、按月複息，每年年頭提取當年保費；錢用完之後嘅保費要自己交。`
         : '兩者均假設每月月初供款、按月複息（以年利率計），每年年頭提取當年保費，最後餘額為零。',
