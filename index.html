@@ -81,13 +81,6 @@
           <p class="hint">計埋利息之後，睇吓夠交保費交到幾多歲。</p>
         </div>
         <div class="field">
-          <span class="label">主要展示方案 <small>（頂部同「遲儲嘅代價」用呢個）</small></span>
-          <div class="seg" role="radiogroup" id="focusSeg">
-            <button type="button" role="radio" data-value="plan" aria-checked="true">儲蓄計劃</button>
-            <button type="button" role="radio" data-value="bank" aria-checked="false">銀行儲蓄</button>
-          </div>
-        </div>
-        <div class="field">
           <span class="label" id="ageRangeLabel">想用儲蓄交保費嘅年齡</span>
           <div class="range-pair">
             <label class="range-pair__item"><span class="range-pair__tag">由</span><select id="startAge" aria-label="由幾歲開始用儲蓄交保費"></select></label>
@@ -96,6 +89,12 @@
           </div>
           <p class="hint" id="ageRangeHint">之前嘅保費照舊自己交，同時儲錢。儲蓄計劃要供滿供款年期先可以提取，未供滿之前到期嘅保費都係自己交。</p>
         </div>
+      </section>
+
+      <details class="adv" id="advBox">
+        <summary class="adv__sum"><span class="adv__t">進階設定</span><small class="adv__s" id="advSummary"></small></summary>
+        <section class="group group--adv">
+          <h2 class="group__title">利率及供款</h2>
         <div class="field">
           <div class="label label--row"><span>銀行儲蓄利率</span><output id="bankRateOut" class="pill pill--bank"></output></div>
           <div class="range-row"><button type="button" class="step" data-for="bankRate" data-dir="-1" aria-label="減少">−</button><input type="range" id="bankRate" min="0" max="8" step="0.1" value="0.1"><button type="button" class="step" data-for="bankRate" data-dir="1" aria-label="增加">＋</button></div>
@@ -104,16 +103,16 @@
         <div class="field">
           <div class="label label--row"><span>儲蓄計劃假設年回報</span><output id="planRateOut" class="pill pill--plan"></output></div>
           <div class="range-row"><button type="button" class="step" data-for="planRate" data-dir="-1" aria-label="減少">−</button><input type="range" id="planRate" min="0" max="10" step="0.1" value="6"><button type="button" class="step" data-for="planRate" data-dir="1" aria-label="增加">＋</button></div>
+          <p class="hint cons-hint" id="consHint" hidden></p>
         </div>
         <div class="field">
           <div class="label label--row"><span>儲蓄計劃供款年期</span><output id="planYearsOut" class="pill pill--plan"></output></div>
           <div class="range-row"><button type="button" class="step" data-for="planYears" data-dir="-1" aria-label="減少">−</button><input type="range" id="planYears" min="1" max="20" step="1" value="5"><button type="button" class="step" data-for="planYears" data-dir="1" aria-label="增加">＋</button></div>
           <p class="hint">儲蓄保險一般要供滿供款期先可以提取，常見有 2、5、10 年；預設 5 年，按你介紹嘅產品改。</p>
         </div>
-      </section>
-
-      <section class="group">
-        <h2 class="group__title">保費假設</h2>
+        </section>
+        <section class="group group--adv">
+          <h2 class="group__title">保費假設</h2>
         <div class="field">
           <div class="label label--row"><span>保費表每年額外加價 <small>（醫療通脹，喺年齡升幅之上）</small></span><output id="inflationOut" class="pill"></output></div>
           <div class="range-row"><button type="button" class="step" data-for="inflation" data-dir="-1" aria-label="減少">−</button><input type="range" id="inflation" min="0" max="8" step="0.5" value="0"><button type="button" class="step" data-for="inflation" data-dir="1" aria-label="增加">＋</button></div>
@@ -146,7 +145,8 @@
           <input type="checkbox" id="levy">
           <span>加上保費徵費（0.1%）</span>
         </label>
-      </section>
+        </section>
+      </details>
 
       <button type="button" class="btn btn--outline btn--block" id="resetBtn">重設</button>
     </aside>
@@ -196,6 +196,7 @@
           <p class="hint chart-tip no-print">滑鼠指住（或者手指撳住）條線，可以睇每一年嘅保費。</p>
           <div class="story no-print" id="story">
             <div class="story__title"><span>一步步睇點樣儲錢交保費</span><button type="button" class="story__all" id="storyAll">全部顯示</button></div>
+            <div class="cons-row"><span class="cons-row__t">儲蓄計劃回報</span><div class="seg seg--sm cons-seg" role="radiogroup" data-cons></div></div>
             <div class="story__steps">
               <button type="button" class="story__btn story__btn--bank" data-step="bank" aria-pressed="false"><span class="story__n">①</span><span>銀行點儲</span></button>
               <button type="button" class="story__btn story__btn--plan" data-step="plan" aria-pressed="false"><span class="story__n">②</span><span>儲蓄計劃點儲</span></button>
@@ -212,6 +213,7 @@
               <h2><span class="num">2</span><span class="num">3</span><span id="saveTitle">要儲幾多</span></h2>
               <p class="card__sub" id="saveSub"></p>
             </div>
+            <div class="seg seg--sm cons-seg no-print" role="radiogroup" data-cons></div>
           </header>
           <div class="compare" id="compare"></div>
           <h3 class="mini-title" id="totalTitle">總共要拎出嚟</h3>
