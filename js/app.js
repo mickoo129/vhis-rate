@@ -6,9 +6,10 @@
   const $ = (id) => document.getElementById(id);
 
   const DEFAULTS = { g: 'M', a: 30, p: 'supreme', o: 'advance-8000', s: 60, e: 90, br: 0.1, pr: 6, py: 5, inf: 0, m: 'annual', tax: '0', levy: 0, fm: 'plan', calc: 'need', ms: 2000, x: '', cons: 0 };
-  const CONS_RATE = 3; // 保守情景：儲蓄計劃回報（%）
-  const consOn = () => !!state.cons && state.pr > CONS_RATE;
-  const planRateUsed = () => (consOn() ? CONS_RATE : state.pr);
+  const CONS_DROP = 1.5; // 保守情景：儲蓄計劃回報減 1.5 個百分點（跟計劃書做法）
+  const consOn = () => !!state.cons && state.pr > 0;
+  const consRate = () => Math.max(0, Math.round((state.pr - CONS_DROP) * 100) / 100);
+  const planRateUsed = () => (consOn() ? consRate() : state.pr);
   // 分類顏色跟 MKPA 色盤：銀行儲蓄 1 藍、儲蓄計劃 6 金、自己交 7 灰藍；保費紅色係「要付錢」，保留
   const COLORS = { premium: '#b3261e', prep: '#6F7377', table: '#1D2B2A', bank: '#3072D4', plan: '#C29323' };
 
@@ -160,13 +161,13 @@
     $('bankRateOut').textContent = pct(state.br / 100);
     $('planRateOut').textContent = pct(state.pr / 100);
     // 保守情景掣（故事區同「要儲幾多」兩個位，同一個設定）
-    const canCons = state.pr > CONS_RATE;
+    const canCons = state.pr > 0;
     document.querySelectorAll('[data-cons]').forEach((seg) => {
       seg.innerHTML = `<button type="button" role="radio" data-value="0" aria-checked="${!consOn()}">假設 ${pct(state.pr / 100)}</button>`
-        + `<button type="button" role="radio" data-value="1" aria-checked="${consOn()}" ${canCons ? '' : 'disabled title="假設回報已經唔高過 3%"'}>保守情景 ${CONS_RATE}%</button>`;
+        + `<button type="button" role="radio" data-value="1" aria-checked="${consOn()}" ${canCons ? '' : 'disabled title="假設回報已經係 0%"'}>保守情景 ${pct(consRate() / 100)}（−${CONS_DROP}%）</button>`;
     });
     $('consHint').hidden = !consOn();
-    $('consHint').textContent = consOn() ? `保守情景開咗：而家所有儲蓄計劃數字按 ${CONS_RATE}% 計（原本假設 ${pct(state.pr / 100)}）。` : '';
+    $('consHint').textContent = consOn() ? `保守情景開咗：而家所有儲蓄計劃數字按 ${pct(consRate() / 100)} 計（假設回報 ${pct(state.pr / 100)} 減 ${CONS_DROP}%）。` : '';
     // 進階設定收埋時都見到而家用緊嘅數
     $('advSummary').textContent = `銀行 ${pct(state.br / 100)} · 儲蓄計劃 ${pct(planRateUsed() / 100)}${consOn() ? '（保守）' : ''}、供 ${state.py} 年 · 加價 ${pct(state.inf / 100)} · ${C.PAYMENT_MODES[state.m].label}`;
     $('planYearsOut').textContent = `${state.py} 年`;
@@ -1194,7 +1195,7 @@
       inp.inflation > 0 ? `保費表每年額外加價假設 ${pct(inp.inflation)}（醫療通脹），喺年齡升幅之上，由現時年齡起每年複合計算。` : '未計保費表額外加價：只反映現行保費表隨年齡上升。',
       `繳費方式：${modeInfo().label}${state.m !== 'annual' ? `（每期 = 年繳保費 × ${modeInfo().factor}，全年等於年繳 × ${(modeInfo().factor * modeInfo().periods).toFixed(2)}）` : ''}${inp.levy ? '；已加 0.1% 保費徵費（未計徵費上限）' : '；未計保費徵費'}。`,
       r.bank.feasible ? `銀行儲蓄：年利率 ${pct(inp.bankRate)}，由 ${inp.currentAge} 歲儲到 ${inp.startAge - 1} 歲，${inp.startAge} 歲起每年提取。` : '銀行儲蓄：即刻要用儲蓄交保費，冇時間預先儲錢，唔適用。',
-      `儲蓄計劃：${consOn() ? `保守情景，回報按 ${CONS_RATE}% 計（原本假設 ${pct(state.pr / 100)}）` : `假設年回報 ${pct(inp.planRate)}`}，供款 ${inp.planYears} 年，供款期後先開始提取；未供滿之前到期嘅保費要自己交。`,
+      `儲蓄計劃：${consOn() ? `保守情景，回報按 ${pct(consRate() / 100)} 計（假設回報 ${pct(state.pr / 100)} 減 ${CONS_DROP}%）` : `假設年回報 ${pct(inp.planRate)}`}，供款 ${inp.planYears} 年，供款期後先開始提取；未供滿之前到期嘅保費要自己交。`,
       inp.calc === 'fixed'
         ? `每月儲定數：每月 ${money(inp.monthlySaving)}，每月月初供款、按月複息，每年年頭提取當年保費；錢用完之後嘅保費要自己交。`
         : '兩者均假設每月月初供款、按月複息（以年利率計），每年年頭提取當年保費，最後餘額為零。',
