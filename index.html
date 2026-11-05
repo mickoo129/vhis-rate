@@ -106,6 +106,11 @@
           <p class="hint cons-hint" id="consHint" hidden></p>
         </div>
         <div class="field">
+          <div class="label label--row"><span>保守情景：回報減幾多</span><output id="consDropOut" class="pill pill--plan"></output></div>
+          <div class="range-row"><button type="button" class="step" data-for="consDrop" data-dir="-1" aria-label="減少">−</button><input type="range" id="consDrop" min="0.5" max="3" step="0.5" value="1.5"><button type="button" class="step" data-for="consDrop" data-dir="1" aria-label="增加">＋</button></div>
+          <p class="hint">計劃書一般喺假設回報上減 1.5% 做較低回報情景；個別產品唔同可以喺度改。</p>
+        </div>
+        <div class="field">
           <div class="label label--row"><span>儲蓄計劃供款年期</span><output id="planYearsOut" class="pill pill--plan"></output></div>
           <div class="range-row"><button type="button" class="step" data-for="planYears" data-dir="-1" aria-label="減少">−</button><input type="range" id="planYears" min="1" max="20" step="1" value="5"><button type="button" class="step" data-for="planYears" data-dir="1" aria-label="增加">＋</button></div>
           <p class="hint">儲蓄保險一般要供滿供款期先可以提取，常見有 2、5、10 年；預設 5 年，按你介紹嘅產品改。</p>

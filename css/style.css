@@ -689,7 +689,8 @@ details.more[open] summary::before { content: "▾ "; }
 .seg--sm button { font-size: 13px; padding: 5px 10px; }
 .cons-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .cons-row__t { font-size: 12.5px; color: var(--ink-2); font-weight: 700; }
-.cons-row .cons-seg { flex: 0 1 340px; }
+.cons-row .cons-seg { flex: 0 1 auto; }
+.cons-seg button { white-space: nowrap; }
 .cons-seg button[data-value="1"][aria-checked="true"] { background: var(--mk-warn-soft, #FFF5DC); color: var(--mk-warn, #8A5B00); }
 .cons-seg button[disabled] { opacity: .45; cursor: not-allowed; }
 #secSave .card__head .cons-seg { flex: 0 0 auto; min-width: 230px; }
@@ -701,3 +702,8 @@ details.more[open] summary::before { content: "▾ "; }
 .rung__cons { display: block; color: #8A5B00; margin-top: 2px; }
 .delay-cons { display: block; margin-top: 6px; font-size: 13px; color: #8A5B00; }
 .rung__cons { display: block; color: #8A5B00; margin-top: 2px; }
+.infl-tag { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; font-style: normal; font-size: 12.5px; color: #8A5B00; }
+.infl-tag--on { color: var(--ink-2); }
+.infl-tag__go { border: 1px solid currentColor; background: #fff; color: inherit; border-radius: 999px; padding: 1px 9px; font: inherit; font-size: 12px; cursor: pointer; }
+.infl-tag__go:hover { background: #FFF5DC; }
+@media (max-width: 560px) { .cons-d { display: none; } }
