@@ -1084,7 +1084,7 @@
         <div class="hbar__track hbar__track--age"><span class="bar bar--gap" style="width:${Math.max(startOff, 0)}%"></span><span class="bar bar--${x.kind}" style="width:${w}%"></span></div>
         <div class="hbar__v">交到 ${reachText(fx, maxAge)}<span class="${fx.reachesTarget ? '' : 'miss'}">${fx.reachesTarget ? `✓ 足夠支付至 ${inp.endAge} 歲` : `之後自行繳付 ${money(fx.shortfall)}`}</span></div>
       </div>`;
-    }).join('') + `<p class="hint">長條代表目標 ${inp.startAge}–${inp.endAge} 歲入面，由儲蓄支付了多少年。</p>`;
+    }).join('') + `<p class="hint">長條代表目標 ${inp.startAge}–${inp.endAge} 歲內，由儲蓄支付了多少年。</p>`;
     drawBalance(inp, story.bank ? fb : null, story.plan ? fp : null);
   }
 
