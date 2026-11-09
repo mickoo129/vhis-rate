@@ -31,14 +31,14 @@
 
   function onePremium(data, sel, age) {
     const p = data.products[sel.productId];
-    if (!p) throw new Error(`搵唔到計劃：${sel.productId}`);
+    if (!p) throw new Error(`找不到計劃：${sel.productId}`);
     const g = p.gendered ? sel.gender : 'U';
     const arr = p.premiums[`${g}|${sel.optionId}`];
-    if (!arr) throw new Error(`搵唔到保費表：${sel.productId} ${g}|${sel.optionId}`);
+    if (!arr) throw new Error(`找不到保費表：${sel.productId} ${g}|${sel.optionId}`);
     let main = 0;
     if (age <= p.maxAge) {
       main = arr[age];
-      if (!(main > 0)) throw new Error(`${p.short} ${age}歲冇保費數據`);
+      if (!(main > 0)) throw new Error(`${p.short} ${age}歲沒有保費數據`);
     } else if (p.maxAge >= 121) {
       main = arr[p.maxAge]; // 121歲及以上
     }
@@ -89,7 +89,7 @@
    */
   function solveFunding(rows, opts) {
     const { depositFrom, years, rate, withdrawFrom, startAge, endAge } = opts;
-    if (years <= 0) return { feasible: false, reason: '冇時間儲錢' };
+    if (years <= 0) return { feasible: false, reason: '沒有時間儲錢' };
     const due = {};
     rows.forEach((r) => { if (r.age >= startAge && r.age <= endAge) due[r.age] = r.payable; });
 
@@ -187,7 +187,7 @@
    */
   function simulateFixed(rows, opts) {
     const { depositFrom, years, rate, withdrawFrom, startAge, target, annual } = opts;
-    if (years <= 0) return { feasible: false, reason: '冇時間儲錢' };
+    if (years <= 0) return { feasible: false, reason: '沒有時間儲錢' };
     const due = {};
     rows.forEach((r) => { if (r.age >= startAge) due[r.age] = r.payable; });
     const lastAge = rows[rows.length - 1].age;
@@ -331,16 +331,16 @@
   function validateInputs(data, inp) {
     const errs = [];
     const list = planList(inp);
-    if (list.some((pl) => !data.products[pl.productId])) return ['請揀計劃'];
+    if (list.some((pl) => !data.products[pl.productId])) return ['請選計劃'];
     const ps = list.map((pl) => data.products[pl.productId]);
     const top = ps.reduce((a, b) => (b.maxAge > a.maxAge ? b : a));
     const maxAge = top.maxAge;
     if (!(inp.currentAge >= 0)) errs.push('請輸入現時年齡');
     if (inp.currentAge > maxAge) errs.push(`${top.short}最高只計到${maxAge}歲`);
-    if (inp.startAge < inp.currentAge) errs.push('開始年齡唔可以細過現時年齡');
-    if (inp.endAge < inp.startAge) errs.push('結束年齡唔可以細過開始年齡');
+    if (inp.startAge < inp.currentAge) errs.push('開始年齡不可以小於現時年齡');
+    if (inp.endAge < inp.startAge) errs.push('結束年齡不可以小於開始年齡');
     if (inp.endAge > maxAge) errs.push(`最高只計到${maxAge}歲（${top.maxAgeNote}）`);
-    if (ps.some((p) => p.gendered) && (!inp.gender || inp.gender === 'U')) errs.push('請揀性別');
+    if (ps.some((p) => p.gendered) && (!inp.gender || inp.gender === 'U')) errs.push('請選性別');
     return errs;
   }
 
