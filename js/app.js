@@ -297,6 +297,16 @@
         render();
       }
     }));
+    // 頁內連結（頂部 4 格、「看結果」）：只捲去嗰個位置，唔改網址。
+    // 網址 # 後面係成個方案嘅設定，如果俾 #secSave 呢類連結蓋咗，就會讀返預設值，客人資料全部重設。
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="#"]');
+      if (!a || e.defaultPrevented) return;
+      const el = document.getElementById(a.getAttribute('href').slice(1));
+      if (!el) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   // 分享呢個方案（MKPA 標準）：手機彈分享選單，電腦複製連結。網址 # 後面已經有全部設定，冇客人姓名。
@@ -1267,7 +1277,11 @@
     $('dataInfo').textContent = `${Object.values(DATA.products).map((p) => `${p.short.split('（')[0]} ${dateZh(p.effective)}`).join('、')} 生效版本`;
     fillProducts();
     bind();
-    window.addEventListener('hashchange', () => { state = readHash(); syncControls(); render(); });
+    window.addEventListener('hashchange', () => {
+      // 只有設定連結（例如貼上分享連結）先重新讀取；#secSave 呢類位置錨點唔理，免得重設方案
+      if (!location.hash.includes('=')) { writeHash(); return; }
+      state = readHash(); syncControls(); render();
+    });
     syncControls();
     writeHash();
     render();
