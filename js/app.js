@@ -32,6 +32,9 @@
   let state = readHash();
   // 一步步顯示供款柱（唔入網址；列印時全部顯示）
   const story = { bank: false, plan: false, delay: false };
+  // 分享連結帶 show=1：客人自己打開時唔使逐格撳，一開就全部顯示
+  const sharedOpen = () => new URLSearchParams(location.hash.slice(1)).get('show') === '1';
+  if (sharedOpen()) story.bank = story.plan = story.delay = true;
 
   function readHash() {
     const s = { ...DEFAULTS };
@@ -235,11 +238,23 @@
       $(id).addEventListener('click', (e) => {
         const b = e.target.closest('button');
         if (!b) return;
+        if (key === 'calc' && b.dataset.value === 'fixed' && state.calc !== 'fixed' && lastR && lastR.plan.feasible) {
+          state.ms = Math.max(100, Math.round(lastR.plan.monthly / 100) * 100); // 由「要儲多少」嘅答案開始，再自己加減
+        }
         state[key] = b.dataset.value;
         changed();
       });
     }
-    $('resetBtn').addEventListener('click', () => { state = { ...DEFAULTS }; changed(); });
+    const newClient = () => {
+      state = { ...DEFAULTS };
+      story.bank = story.plan = story.delay = false;
+      $('advBox').open = false;
+      changed();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      toast('已清除設定，可以輸入新客人資料');
+    };
+    $('resetBtn').addEventListener('click', newClient);
+    $('newClientBtn').addEventListener('click', newClient);
     $('printBtn').addEventListener('click', () => window.print());
     document.querySelectorAll('.step').forEach((btn) => btn.addEventListener('click', () => {
       const el = $(btn.dataset.for);
@@ -262,6 +277,12 @@
     });
     $('copyLink').addEventListener('click', copyLink);
     document.addEventListener('click', (e) => {
+      const gf = e.target.closest('[data-goto-field]');
+      if (gf) {
+        const el = $(gf.dataset.gotoField);
+        if (el) { el.closest('.field, .group').scrollIntoView({ behavior: 'smooth', block: 'center' }); setTimeout(() => el.focus({ preventScroll: true }), 400); }
+        return;
+      }
       if (e.target.closest('[data-goto-delay]')) {
         if (!story.delay) { story.delay = true; render(); }
         $('secDelay').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -316,7 +337,7 @@
 
   // 分享呢個方案（MKPA 標準）：手機彈分享選單，電腦複製連結。網址 # 後面已經有全部設定，冇客人姓名。
   async function copyLink() {
-    const url = location.href;
+    const url = location.href.split('#')[0] + location.hash + '&show=1';
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       try { await navigator.share({ title: document.title, url }); return; } catch (e) { return; }
     }
@@ -358,6 +379,7 @@
     };
   }
 
+  let lastR = null; // 最近一次「要儲多少」嘅結果（轉去每月定額時用嚟填金額）
   function render() {
     const inp = inputs();
     const errs = C.validateInputs(DATA, inp);
@@ -378,6 +400,7 @@
       return;
     }
     r.cons = consCheck(inp, r);
+    if (inp.calc !== 'fixed') lastR = r;
     $('errors').hidden = true;
     $('resultBody').hidden = false;
     renderCombo(inp, r);
@@ -425,17 +448,18 @@
   function renderClient(inp, r) {
     const ps = allPlans().map((pl) => DATA.products[pl.productId]);
     const tags = [
-      `${ps.some((x) => x.gendered) ? (inp.gender === 'M' ? '男' : '女') + ' · ' : ''}現時 ${inp.currentAge} 歲`,
-      plansLabel(),
-      inp.calc === 'fixed'
+      [`${ps.some((x) => x.gendered) ? (inp.gender === 'M' ? '男' : '女') + ' · ' : ''}現時 ${inp.currentAge} 歲`, 'currentAge'],
+      [plansLabel(), 'product'],
+      [inp.calc === 'fixed'
         ? `每月儲 ${money(inp.monthlySaving)} · 目標 ${inp.startAge}–${inp.endAge} 歲用儲蓄交保費`
-        : `目標 ${inp.startAge}–${inp.endAge} 歲用儲蓄交保費（${r.coverYears} 年）`,
+        : `目標 ${inp.startAge}–${inp.endAge} 歲用儲蓄交保費（${r.coverYears} 年）`, inp.calc === 'fixed' ? 'monthlySaving' : 'startAge'],
     ];
     let warn = '';
     const issue = Math.min(...ps.map((x) => (x.maxIssueAge == null ? 999 : x.maxIssueAge)));
     if (issue < 999 && inp.currentAge > issue)
       warn = `<span class="tag tag--warn">${inp.currentAge} 歲只適用於續保，不可以新投保</span>`;
-    $('clientLine').innerHTML = tags.map((t) => `<span class="tag">${esc(t)}</span>`).join('') + warn;
+    // 撳一下跳返去改嗰個設定（手機特別有用）
+    $('clientLine').innerHTML = tags.map(([t, id]) => `<button type="button" class="tag tag--go" data-goto-field="${id}" title="撳一下修改">${esc(t)}</button>`).join('') + warn;
   }
 
   // 總保費旁邊講清楚有冇計醫療通脹（撳「調整」打開進階設定）
@@ -480,10 +504,6 @@
     if (r.cons) {
       const c = r.cons;
       s3.push(`<span class="${c.fx.reachesTarget ? 'good' : 'bad'}">保守情景 ${pct(c.rate)}：${c.fx.reachesTarget ? '' : '只'}足夠支付至 ${reachText(c.fx, maxAgeAll())}</span>`);
-      if (!c.fx.reachesTarget && c.need.feasible) {
-        const cg = b.feasible ? b.totalOutlay - c.need.totalOutlay : 0;
-        s3.push(`<span class="${cg > 0.5 ? 'good' : ''}">支付至 ${inp.endAge} 歲要每月 ${money(c.need.monthly)}${cg > 0.5 ? `，仍比銀行節省 ${money(cg)}` : ''}</span>`);
-      }
     }
     $('kPlanSub').innerHTML = s3.join('<br>');
     renderDelayKpi(inp, r);
@@ -780,13 +800,7 @@
       }
       if (!fixed && r.cons) {
         const c = r.cons;
-        t += ` 保守情景（回報 ${pct(c.rate)}）：${consReach(inp, c)}`;
-        if (!c.fx.reachesTarget && c.need.feasible) {
-          t += `；要支付至 ${inp.endAge} 歲，每月要儲 <b>${money(c.need.monthly)}</b>`;
-          const cg = canBank ? b.totalOutlay - c.need.totalOutlay : 0;
-          if (cg > 0.5) t += `，仍比銀行<b class="good">節省 ${money(cg)}</b>`;
-        }
-        t += '。';
+        t += ` 保守情景（回報 ${pct(c.rate)}）：${consReach(inp, c)}。`;
       }
       if (p.withdrawFrom > inp.startAge) t += ` 要供滿才可以提取，${inp.startAge}–${p.withdrawFrom - 1} 歲保費仍然自行繳付。`;
       notes.push(['plan', '②', t]);
@@ -1005,6 +1019,7 @@
     $('secSave').hidden = !shownKinds().length;
     $('secDelay').hidden = !story.delay;
     $('totalTitle').textContent = inp.calc === 'fixed' ? '可支付至幾歲' : '總共要付出';
+    document.body.classList.toggle('is-fixed', inp.calc === 'fixed'); // 列印用：每月定額時差距大格已講支付到幾歲
     if (inp.calc === 'fixed') return renderCompareFixed(inp, r);
     $('saveTitle').textContent = '要儲多少';
     $('saveSub').textContent = '用同一套計法：每月月初供款、按月複息；到期每年年初提取當年保費，最後剛好用完。★ 代表總共要付出的錢較少。';
@@ -1377,7 +1392,8 @@
     window.addEventListener('hashchange', () => {
       // 只有設定連結（例如貼上分享連結）先重新讀取；#secSave 呢類位置錨點唔理，免得重設方案
       if (!location.hash.includes('=')) { writeHash(); return; }
-      state = readHash(); syncControls(); render();
+      if (sharedOpen()) story.bank = story.plan = story.delay = true;
+      state = readHash(); syncControls(); render(); writeHash();
     });
     syncControls();
     writeHash();

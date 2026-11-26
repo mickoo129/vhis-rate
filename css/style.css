@@ -743,3 +743,12 @@ details.more[open] summary::before { content: "▾ "; }
   .gap__delay { display: none; } /* 第 4 部分已經有遲儲的代價 */
   .gap ~ .baseline { display: none; } /* 列印時「完全不儲」已喺下面橫條，慳位 */
 }
+
+/* 新客人掣、可撳嘅摘要 */
+.group__title--row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.btn-new { font: inherit; font-size: 12.5px; font-weight: 700; letter-spacing: 0; color: var(--brand); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+.btn-new:hover { border-color: var(--brand); }
+.tag--go { font: inherit; cursor: pointer; }
+.tag--go:hover { border-color: var(--brand); color: var(--brand); }
+@media print { .btn-new { display: none; } .tag--go { cursor: auto; } }
+@media print { body.is-fixed #totalTitle, body.is-fixed #totalBars { display: none; } }
