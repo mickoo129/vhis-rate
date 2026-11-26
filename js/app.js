@@ -262,6 +262,11 @@
     });
     $('copyLink').addEventListener('click', copyLink);
     document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-goto-delay]')) {
+        if (!story.delay) { story.delay = true; render(); }
+        $('secDelay').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
       if (e.target.closest('[data-goto-infl]')) {
         $('advBox').open = true;
         $('inflation').closest('.field').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -466,10 +471,17 @@
       const parts = [];
       if (Math.abs(dm) > 0.5) parts.push(`每月${dm > 0 ? '少' : '多'} ${money(Math.abs(dm))}`);
       if (dy !== 0) parts.push(`${dy > 0 ? '少' : '多'}儲 ${Math.abs(dy)} 年`);
-      if (Math.abs(dt) > 0.5) parts.push(`總共${dt > 0 ? '少' : '多'}取 ${money(Math.abs(dt))}`);
+      if (Math.abs(dt) > 0.5) parts.push(dt > 0 ? `總共節省 ${money(dt)}` : `總共多付 ${money(-dt)}`);
       if (parts.length) s3.push(`<span class="${dt > 0 ? 'good' : 'bad'}">比銀行${parts.join('、')}</span>`);
     }
-    if (r.cons) s3.push(`<span class="${r.cons.fx.reachesTarget ? 'good' : 'bad'}">保守情景 ${pct(r.cons.rate)}：足夠支付至 ${reachText(r.cons.fx, maxAgeAll())}</span>`);
+    if (r.cons) {
+      const c = r.cons;
+      s3.push(`<span class="${c.fx.reachesTarget ? 'good' : 'bad'}">保守情景 ${pct(c.rate)}：${c.fx.reachesTarget ? '' : '只'}足夠支付至 ${reachText(c.fx, maxAgeAll())}</span>`);
+      if (!c.fx.reachesTarget && c.need.feasible) {
+        const cg = b.feasible ? b.totalOutlay - c.need.totalOutlay : 0;
+        s3.push(`<span class="${cg > 0.5 ? 'good' : ''}">支付至 ${inp.endAge} 歲要每月 ${money(c.need.monthly)}${cg > 0.5 ? `，仍比銀行節省 ${money(cg)}` : ''}</span>`);
+      }
+    }
     $('kPlanSub').innerHTML = s3.join('<br>');
     renderDelayKpi(inp, r);
     gateKpis(inp, r);
@@ -538,6 +550,12 @@
     };
     one('kBank', r.fixed[0].bank, r.bank);
     one('kPlan', r.fixed[0].plan, r.plan);
+    // 同樣每月供款：儲蓄計劃比銀行少供幾多年、本金少幾多
+    const fb = r.fixed[0].bank, fp = r.fixed[0].plan;
+    if (fb.feasible && fp.feasible && fb.years > fp.years && fb.principal - fp.principal > 0.5) {
+      const dpay = fb.reachesTarget && fp.reachesTarget ? 0 : fp.paidYears - fb.paidYears;
+      $('kPlanSub').innerHTML += `<br><span class="good">比銀行少供 ${fb.years - fp.years} 年、本金少 ${money(fb.principal - fp.principal)}${dpay > 0 ? `，多支付 ${dpay} 年` : dpay < 0 ? `，可支付年期少 ${-dpay} 年` : ''}</span>`;
+    }
 
     renderDelayKpi(inp, r);
     gateKpis(inp, r);
@@ -753,11 +771,20 @@
           const dm = b.monthly - p.monthly, dy = b.years - p.years, dt = b.totalOutlay - p.totalOutlay;
           if (Math.abs(dm) > 0.5) parts.push(`每月${dm > 0 ? '少' : '多'} ${money(Math.abs(dm))}`);
           if (dy !== 0) parts.push(`${dy > 0 ? '少' : '多'}儲 ${Math.abs(dy)} 年`);
-          if (Math.abs(dt) > 0.5) parts.push(`總共${dt > 0 ? '少' : '多'}取 ${money(Math.abs(dt))}`);
+          if (Math.abs(dt) > 0.5) parts.push(dt > 0 ? `總共節省 ${money(dt)}` : `總共多付 ${money(-dt)}`);
           if (parts.length) t += ` 比銀行<b class="${dt > 0 ? 'good' : 'bad'}">${parts.join('、')}</b>。`;
         }
       }
-      if (!fixed && r.cons) t += ` 保守情景（回報 ${pct(r.cons.rate)}）：${consReach(inp, r.cons)}。`;
+      if (!fixed && r.cons) {
+        const c = r.cons;
+        t += ` 保守情景（回報 ${pct(c.rate)}）：${consReach(inp, c)}`;
+        if (!c.fx.reachesTarget && c.need.feasible) {
+          t += `；要支付至 ${inp.endAge} 歲，每月要儲 <b>${money(c.need.monthly)}</b>`;
+          const cg = canBank ? b.totalOutlay - c.need.totalOutlay : 0;
+          if (cg > 0.5) t += `，仍比銀行<b class="good">節省 ${money(cg)}</b>`;
+        }
+        t += '。';
+      }
       if (p.withdrawFrom > inp.startAge) t += ` 要供滿才可以提取，${inp.startAge}–${p.withdrawFrom - 1} 歲保費仍然自行繳付。`;
       notes.push(['plan', '②', t]);
     }
@@ -986,17 +1013,22 @@
     const order = ['bank', 'plan'].filter((k) => show.includes(k));
     $('compare').classList.toggle('compare--one', order.length === 1);
     $('compare').innerHTML = order.map((k) => cards[k]).join('') + (order.length === 2 ? gapHtml(inp, r) : '') +
-      `<div class="baseline">如果完全不預先儲：${inp.startAge}–${inp.endAge} 歲要自行繳付 <b>${money(r.totalPayable)}</b>。${ok.length && saved > 0 ? `預先儲最多可少付 ${money(saved)}（${pct(saved / r.totalPayable)}）。` : ''}</div>`;
+      `<div class="baseline">如果完全不預先儲：${inp.startAge}–${inp.endAge} 歲要自行繳付 <b>${money(r.totalPayable)}</b>。${ok.length && saved > 0 ? `預先儲最多可節省 ${money(saved)}（${pct(saved / r.totalPayable)}）。` : ''}</div>`;
 
     drawTotals(inp, r);
     drawBalance(inp, story.bank ? r.bank : null, story.plan ? (r.cons ? r.cons.fx : r.plan) : null, !!r.cons);
   }
 
-  // 兩個方案嘅差距：一眼睇到爭幾遠（要儲多少）
+  // 兩個方案嘅差距：三欄（銀行｜儲蓄計劃｜差距），一眼睇到爭幾遠
   const NAME = { bank: '銀行儲蓄', plan: '儲蓄計劃' };
-  const gapBox = (kind, headline, big, sub, stats, extra = '') => `<div class="gap gap--${kind}">
-      <div class="gap__main"><span class="gap__h">${headline}</span><b class="gap__big">${big}</b><span class="gap__sub">${sub}</span></div>
-      ${stats.length ? `<div class="gap__stats">` : '<div hidden>'}${stats.map(([k, v, c]) => `<div class="gap__stat${c ? ' gap__stat--' + c : ''}"><span>${k}</span><b>${v}</b></div>`).join('')}</div>${extra}</div>`;
+  const gapCol = (kind, label, lines) => `<div class="gap__col gap__col--${kind}"><span class="gap__lbl">${label}</span>${lines.map((l, i) => i === 0 ? `<b class="gap__v">${l}</b>` : `<span>${l}</span>`).join('')}</div>`;
+  const gapBox = (cols, diff, extras) => `<div class="gap">${cols.join('')}
+      <div class="gap__col gap__col--diff"><span class="gap__lbl">${diff.label}</span><b class="gap__big">${diff.big}</b>${diff.lines.map((l) => `<span>${l}</span>`).join('')}</div>
+      ${extras.filter(Boolean).join('')}</div>`;
+  const yrsDiff = (d) => (d > 0 ? `少供 ${d} 年` : d < 0 ? `多供 ${-d} 年` : '');
+  // 撳最底嗰句：打開「遲儲的代價」再捲過去
+  const delayLink = (txt) => `<button type="button" class="gap__delay" data-goto-delay>${txt}<span class="no-print"> 看遲儲的代價 →</span></button>`;
+
   function gapHtml(inp, r) {
     const b = r.bank, p = r.plan;
     if (!b.feasible || !p.feasible) return '';
@@ -1004,40 +1036,55 @@
     if (Math.abs(diff) < 1) return '';
     const [win, lose, wk, lk] = diff > 0 ? [p, b, 'plan', 'bank'] : [b, p, 'bank', 'plan'];
     const gap = Math.abs(diff);
-    const stats = [];
-    if (lose.monthly - win.monthly > 0.5) stats.push(['每月少儲', money(lose.monthly - win.monthly)]);
-    if (lose.years > win.years) stats.push(['少供', `${lose.years - win.years} 年`]);
-    let extra = '';
+    const col = (k, x) => gapCol(k, `${NAME[k]} · ${pct(k === 'bank' ? inp.bankRate : inp.planRate)}`,
+      [`每月 ${money(x.monthly)} × ${x.years} 年`, `${x.depositFrom}–${x.depositTo} 歲供款`, `總共付出 ${money(x.totalOutlay)}`]);
+    const lines = [`比${NAME[lk]}少 ${pct(gap / lose.totalOutlay, 0)}`];
+    const more = [yrsDiff(lose.years - win.years), lose.monthly - win.monthly > 0.5 ? `每月少儲 ${money(lose.monthly - win.monthly)}` : ''].filter(Boolean);
+    if (more.length) lines.push(more.join(' · '));
+    let cons = '';
     if (wk === 'plan' && r.cons && r.cons.need.feasible) {
       const cg = b.totalOutlay - r.cons.need.totalOutlay;
-      extra = cg > 0
-        ? `<p class="gap__cons">即使回報減 ${state.cd}%（${pct(r.cons.rate)}），每月儲 ${money(r.cons.need.monthly)} 支付至 ${inp.endAge} 歲，總共仍比銀行儲蓄少付 <b>${money(cg)}</b>（少 ${pct(cg / b.totalOutlay, 0)}）。</p>`
-        : `<p class="gap__cons">如果回報減 ${state.cd}%（${pct(r.cons.rate)}），儲蓄計劃總共要付出 ${money(r.cons.need.totalOutlay)}，不再比銀行儲蓄少。</p>`;
+      cons = cg > 0
+        ? `<p class="gap__cons">即使回報減 ${state.cd}%（${pct(r.cons.rate)}），每月儲 ${money(r.cons.need.monthly)} 支付至 ${inp.endAge} 歲，總共仍比銀行儲蓄節省 <b>${money(cg)}</b>（少 ${pct(cg / b.totalOutlay, 0)}）。</p>`
+        : `<p class="gap__cons">如果回報減 ${state.cd}%（${pct(r.cons.rate)}），儲蓄計劃總共要付出 ${money(r.cons.need.totalOutlay)}，不再比銀行儲蓄節省。</p>`;
     }
-    return gapBox(wk, `選擇${NAME[wk]}，總共少付`, money(gap),
-      `比${NAME[lk]}少 <b>${pct(gap / lose.totalOutlay, 0)}</b>（${money(win.totalOutlay)} 對 ${money(lose.totalOutlay)}）`,
-      stats, extra);
+    const s5 = r.scenarios[1];
+    const late = s5 && s5[wk].feasible ? delayLink(`越早開始越好：遲 ${s5.delay} 年才開始，${NAME[wk]}每月要多儲 <b>${money(s5[wk].monthly - win.monthly)}</b>。`) : '';
+    return gapBox([col('bank', b), col('plan', p)], { label: `選擇${NAME[wk]}，總共節省`, big: money(gap), lines }, [cons, late]);
   }
-  // 每月儲定數：同樣每月供款，邊個可以支付得耐啲
+
+  // 每月儲定數：同樣每月供款，比較供幾耐、本金幾多、支付到幾歲
   function gapHtmlFixed(inp, r, fb, fp) {
     if (!fb.feasible || !fp.feasible) return '';
     const maxAge = maxAgeAll();
-    const yd = fp.paidYears - fb.paidYears;
+    const col = (k, x) => gapCol(k, `${NAME[k]} · ${pct(k === 'bank' ? inp.bankRate : inp.planRate)}`,
+      [`支付至 ${reachText(x, maxAge)}`, `每月 ${money(x.monthly)} × ${x.years} 年`, `本金 ${money(x.principal)}`]);
+    const dy = fb.years - fp.years, dp = fb.principal - fp.principal, dpay = fp.paidYears - fb.paidYears;
     const both = fb.reachesTarget && fp.reachesTarget;
+    let big, lines = [];
+    if (dy > 0 && dp > 0.5) {
+      big = `少供 ${dy} 年`;
+      lines.push(`本金少 ${money(dp)}（少 ${pct(dp / fb.principal, 0)}）`);
+    } else {
+      big = dpay > 0 ? `多支付 ${dpay} 年` : dpay < 0 ? `少支付 ${-dpay} 年` : '支付年期相同';
+      if (dy) lines.push(yrsDiff(dy));
+    }
     if (both) {
       const d = (fp.leftoverAtTarget || 0) - (fb.leftoverAtTarget || 0);
-      if (Math.abs(d) < 1) return '';
-      const wk = d > 0 ? 'plan' : 'bank', lk = d > 0 ? 'bank' : 'plan';
-      return gapBox(wk, `兩者都足夠支付至 ${inp.endAge} 歲，選擇${NAME[wk]}到時多剩`, money(Math.abs(d)),
-        `同樣每月儲 ${money(inp.monthlySaving)}`, [[`${NAME.bank}剩`, money(fb.leftoverAtTarget || 0), wk === 'bank' ? '' : 'muted'], [`${NAME.plan}剩`, money(fp.leftoverAtTarget || 0), wk === 'plan' ? '' : 'muted']]);
+      if (Math.abs(d) >= 1) lines.push(`到 ${inp.endAge} 歲${d > 0 ? '多' : '少'}剩 ${money(Math.abs(d))}`);
+    } else if (dy > 0 && dp > 0.5) {
+      lines.push(dpay > 0 ? `仍可多支付 ${dpay} 年保費` : dpay < 0 ? `可支付年期少 ${-dpay} 年` : '支付年期一樣');
     }
-    if (yd === 0) return '';
-    const [win, lose, wk, lk] = yd > 0 ? [fp, fb, 'plan', 'bank'] : [fb, fp, 'bank', 'plan'];
-    const less = (lose.reachesTarget ? 0 : lose.shortfall) - (win.reachesTarget ? 0 : win.shortfall);
-    const stats = [[`${NAME[wk]}`, `支付至 ${reachText(win, maxAge)}`], [`${NAME[lk]}`, `支付至 ${reachText(lose, maxAge)}`, 'muted']];
-    if (less > 0.5) stats.push(['自行繳付少了', money(less)]);
-    return gapBox(wk, `同樣每月儲 ${money(inp.monthlySaving)}，選擇${NAME[wk]}可以多支付`, `${Math.abs(yd)} 年保費`,
-      `由儲蓄支付 ${win.paidYears} 年，${NAME[lk]}只有 ${lose.paidYears} 年`, stats);
+    const s5 = r.fixed[1];
+    let late = '';
+    if (s5 && s5.plan.feasible) {
+      const head = `越早開始越好：遲 ${s5.delay} 年才開始，同樣每月儲 ${money(inp.monthlySaving)}，儲蓄計劃`;
+      if (s5.plan.reachesTarget && fp.reachesTarget) {
+        const less = (fp.leftoverAtTarget || 0) - (s5.plan.leftoverAtTarget || 0);
+        if (less > 0.5) late = delayLink(`${head}到 ${inp.endAge} 歲剩餘少 <b>${money(less)}</b>。`);
+      } else late = delayLink(`${head}只足夠支付至 <b>${reachText(s5.plan, maxAge)}</b>。`);
+    }
+    return gapBox([col('bank', fb), col('plan', fp)], { label: `同樣每月儲 ${money(inp.monthlySaving)}，儲蓄計劃`, big, lines }, [late]);
   }
 
   function drawTotals(inp, r) {
