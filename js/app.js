@@ -391,6 +391,9 @@
   }
 
   // 遲儲嘅代價喺保守情景下：每月要由幾多加到幾多
+  // 保守情景比較時，兩行都要寫明用咩回報計
+  const planTagBase = (inp) => `儲蓄計劃（假設 ${pct(inp.planRate)}）`;
+  const planTagCons = (inp, c) => `儲蓄計劃（保守 ${pct(c.rate)}，要支付至 ${inp.endAge} 歲）`;
   const consUp = (c, i) => { const a = c.scen[0], b = c.scen[i]; return a && b && a.feasible && b.feasible ? { a, b, up: b.monthly - a.monthly } : null; };
   // 保守情景（要儲幾多模式）：同樣每月供款，回報減 1.5% 足夠支付至幾歲；想交足要儲幾多
   function consCheck(inp, r) {
@@ -511,9 +514,9 @@
     }).join('')}</div>`;
     const cu = !fixed && r.cons && ks.includes('plan') ? consUp(r.cons, 1) : null;
     $('kDelaySub').innerHTML = (fixed
-      ? `${s5.age} 歲才開始儲蓄，同樣每月 ${money(inp.monthlySaving)}，可支付至的年齡`
-      : `${s5.age} 歲才開始儲蓄，每月要儲的錢`)
-      + (cu ? `<br><span class="bad">保守情景 ${pct(r.cons.rate)}：儲蓄計劃 ${money(cu.a.monthly)} → ${money(cu.b.monthly)}</span>` : '');
+      ? `${s5.age} 歲才開始儲蓄，同樣每月 ${money(inp.monthlySaving)}，可支付至的年齡${consOn() ? `（儲蓄計劃按保守 ${pct(inp.planRate)}）` : ''}`
+      : `${s5.age} 歲才開始儲蓄，每月要儲的錢${cu ? `（儲蓄計劃按假設 ${pct(inp.planRate)}）` : ''}`)
+      + (cu ? `<br><span class="bad">${planTagCons(inp, r.cons)}：${money(cu.a.monthly)} → ${money(cu.b.monthly)}</span>` : '');
   }
 
   // 未撳嘅步驟唔顯示數字
@@ -790,7 +793,7 @@
     }
     if (story.delay && canDelay) {
       const lines = delayKinds(delayS).map((k) => {
-        const nm = k === 'bank' ? '銀行' : '儲蓄計劃';
+        const nm = k === 'bank' ? '銀行' : (!fixed && r.cons ? planTagBase(inp) : fixed && consOn() ? `儲蓄計劃（保守 ${pct(inp.planRate)}）` : '儲蓄計劃');
         const base = (fixed ? r.fixed : r.scenarios)[0][k];
         const d = delayS[k];
         if (fixed) {
@@ -800,7 +803,7 @@
         const up = d.monthly - base.monthly;
         const cu = k === 'plan' && r.cons ? consUp(r.cons, 1) : null;
         return `${nm}：每月由 ${money(base.monthly)} 變 <b>${money(d.monthly)}</b>（<b class="bad">多 ${money(up)}，+${pct(up / base.monthly, 0)}</b>）`
-          + (cu ? `<br>　保守情景 ${pct(r.cons.rate)}：想交足到 ${inp.endAge} 歲，每月由 ${money(cu.a.monthly)} 變 <b>${money(cu.b.monthly)}</b>（<b class="bad">多 ${money(cu.up)}</b>）` : '');
+          + (cu ? `<br>${planTagCons(inp, r.cons)}：每月由 ${money(cu.a.monthly)} 變 <b>${money(cu.b.monthly)}</b>（<b class="bad">多 ${money(cu.up)}</b>）` : '');
       });
       notes.push(['delay', '③', `遲 ${delayS.delay} 年（${delayS.age} 歲）才開始儲蓄：<br>${lines.join('<br>')}`]);
     }
@@ -1250,7 +1253,7 @@
       : `${inp.startAge} 歲就要開始用儲蓄交保費，沒有時間再遲；如果不儲，就要如下全部自行繳付`;
     const showCons = k === 'plan' && r.cons;
     const cu5 = showCons && s5 ? consUp(r.cons, 1) : null;
-    const consLead = cu5 ? `<span class="delay-cons">保守情景（回報 ${pct(r.cons.rate)}）想交足到 ${inp.endAge} 歲：每月要由 <b>${money(cu5.a.monthly)}</b> 加到 <b>${money(cu5.b.monthly)}</b>（每月多 ${money(cu5.up)}）</span>` : '';
+    const consLead = cu5 ? `<span class="delay-cons">${planTagCons(inp, r.cons)}：每月要由 <b>${money(cu5.a.monthly)}</b> 加到 <b>${money(cu5.b.monthly)}</b>（每月多 ${money(cu5.up)}）</span>` : '';
     $('delayLead').innerHTML = `<span class="delay-lead__tag">${esc(f.label)}</span>${lead}${f.note ? `<span class="hint">（${f.note}）</span>` : ''}${consLead}`;
 
     $('delayLadder').innerHTML = rows.map((x, i) => {
@@ -1260,7 +1263,7 @@
         (i > 0 && x.extraTotal > 1000 ? `（多 ${money(x.extraTotal)}）` : '') +
         (x.res.outOfPocket > 0.5 ? ` · 另加自行繳付保費 ${money(x.res.outOfPocket)}` : '');
       const cs = showCons ? r.cons.scen[r.scenarios.findIndex((s) => s[k] === x.res)] : null;
-      const consTxt = cs && cs.feasible ? `<span class="rung__cons">保守情景 ${pct(r.cons.rate)}：每月要儲 ${money(cs.monthly)}${i > 0 ? `（多 ${money(cs.monthly - r.cons.scen[0].monthly)}）` : ''}</span>` : '';
+      const consTxt = cs && cs.feasible ? `<span class="rung__cons">保守 ${pct(r.cons.rate)}（要支付至 ${inp.endAge} 歲）：每月要儲 ${money(cs.monthly)}${i > 0 ? `（多 ${money(cs.monthly - r.cons.scen[0].monthly)}）` : ''}</span>` : '';
       return `<div class="rung${i === 0 ? ' rung--now' : ''}">
         <div class="rung__who"><b>${x.title}</b><span>${x.age}</span></div>
         <div class="rung__bar"><span class="bar bar--${k}" style="width:${baseW}%"></span><span class="bar bar--extra" style="width:${extraW}%"></span></div>
